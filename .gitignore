@@ -11,3 +11,6 @@ npm-debug.log*
 .DS_Store
 
 .claude/
+
+# Local working notes
+NEXT_STEPS.md
