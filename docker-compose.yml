@@ -1,0 +1,27 @@
+name: randevia
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: randevia-rabbitmq
+    # RabbitMQ stores its data under a directory named after the node's
+    # hostname, so it must be fixed for the volume to survive re-creation.
+    hostname: randevia-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
+    ports:
+      - '5672:5672' # AMQP
+      - '15672:15672' # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  rabbitmq_data:
