@@ -2,9 +2,17 @@ import mongoose from 'mongoose';
 import request from 'supertest';
 import app from '../../src/app';
 import { env } from '../../src/config/env';
+import { publishEvent } from '../../src/messaging/eventPublisher';
 import { Appointment } from '../../src/models/Appointment.model';
 import { Doctor } from '../../src/models/Doctor.model';
 import { generateAccessToken, newUserId } from '../utils/token';
+
+jest.mock('../../src/messaging/eventPublisher', () => ({
+  publishEvent: jest.fn().mockResolvedValue(true),
+  isEventPublisherConnected: jest.fn().mockReturnValue(false),
+}));
+
+const publishEventMock = jest.mocked(publishEvent);
 
 beforeAll(async () => {
   await mongoose.connect(env.MONGO_URI);
@@ -234,5 +242,100 @@ describe('PATCH /api/v1/appointments/:id/confirm', () => {
       .set('Authorization', `Bearer ${doctor.token}`);
 
     expect(res.status).toBe(404);
+  });
+});
+
+describe('Appointment events', () => {
+  async function book() {
+    const doctor = await createDoctor();
+    const patientId = newUserId();
+    const patientToken = generateAccessToken(patientId, 'patient');
+    const date = futureDate();
+    const res = await request(app)
+      .post('/api/v1/appointments')
+      .set('Authorization', `Bearer ${patientToken}`)
+      .send({ doctorId: doctor.doctorId, date });
+
+    return {
+      doctor,
+      patientId,
+      patientToken,
+      date,
+      appointmentId: res.body.data.appointment._id as string,
+    };
+  }
+
+  it('publishes appointment.created with the full payload', async () => {
+    const { doctor, patientId, date, appointmentId } = await book();
+
+    expect(publishEventMock).toHaveBeenCalledTimes(1);
+    expect(publishEventMock.mock.calls[0]?.[0]).toEqual({
+      eventId: expect.any(String),
+      eventType: 'appointment.created',
+      occurredAt: expect.any(String),
+      appointmentId,
+      patientId,
+      doctorId: doctor.doctorId,
+      doctorUserId: doctor.userId,
+      date,
+      status: 'pending',
+    });
+  });
+
+  it('publishes appointment.confirmed when the doctor confirms', async () => {
+    const { doctor, appointmentId } = await book();
+    publishEventMock.mockClear();
+
+    await request(app)
+      .patch(`/api/v1/appointments/${appointmentId}/confirm`)
+      .set('Authorization', `Bearer ${doctor.token}`);
+
+    expect(publishEventMock).toHaveBeenCalledTimes(1);
+    expect(publishEventMock.mock.calls[0]?.[0]).toMatchObject({
+      eventType: 'appointment.confirmed',
+      appointmentId,
+      doctorUserId: doctor.userId,
+      status: 'confirmed',
+    });
+  });
+
+  it('publishes appointment.cancelled when the patient cancels', async () => {
+    const { doctor, patientToken, appointmentId } = await book();
+    publishEventMock.mockClear();
+
+    await request(app)
+      .patch(`/api/v1/appointments/${appointmentId}/cancel`)
+      .set('Authorization', `Bearer ${patientToken}`);
+
+    expect(publishEventMock).toHaveBeenCalledTimes(1);
+    expect(publishEventMock.mock.calls[0]?.[0]).toMatchObject({
+      eventType: 'appointment.cancelled',
+      appointmentId,
+      doctorUserId: doctor.userId,
+      status: 'cancelled',
+    });
+  });
+
+  it('does not publish when the operation fails', async () => {
+    const { doctor, date } = await book();
+    publishEventMock.mockClear();
+
+    const res = await request(app)
+      .post('/api/v1/appointments')
+      .set('Authorization', `Bearer ${generateAccessToken(newUserId(), 'patient')}`)
+      .send({ doctorId: doctor.doctorId, date });
+
+    expect(res.status).toBe(409);
+    expect(publishEventMock).not.toHaveBeenCalled();
+  });
+
+  it('uses a unique eventId per event', async () => {
+    const { doctor, appointmentId } = await book();
+    await request(app)
+      .patch(`/api/v1/appointments/${appointmentId}/confirm`)
+      .set('Authorization', `Bearer ${doctor.token}`);
+
+    const ids = publishEventMock.mock.calls.map(([event]) => event.eventId);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });

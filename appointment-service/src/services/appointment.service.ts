@@ -1,8 +1,19 @@
+import { AppointmentEventType, buildAppointmentEvent } from '../events/appointment.events';
+import { publishEvent } from '../messaging/eventPublisher';
 import { Appointment, IAppointment } from '../models/Appointment.model';
 import { Doctor } from '../models/Doctor.model';
 import { ApiError } from '../utils/ApiError';
 import type { Role } from '../types/role';
 import type { CreateAppointmentInput } from '../validations/appointment.validation';
+
+// Fire-and-forget: the request must not wait for, or fail because of, the broker.
+function emitAppointmentEvent(
+  eventType: AppointmentEventType,
+  appointment: IAppointment,
+  doctorUserId: string,
+): void {
+  void publishEvent(buildAppointmentEvent(eventType, appointment, doctorUserId));
+}
 
 export async function createAppointment(
   patientId: string,
@@ -22,12 +33,16 @@ export async function createAppointment(
     throw new ApiError(409, 'Doctor already has an appointment at this date and time');
   }
 
-  return Appointment.create({
+  const appointment = await Appointment.create({
     patientId,
     doctorId: doctor._id,
     date: input.date,
     status: 'pending',
   });
+
+  emitAppointmentEvent('appointment.created', appointment, doctor.userId.toString());
+
+  return appointment;
 }
 
 export async function listMyAppointments(userId: string, role: Role): Promise<IAppointment[]> {
@@ -60,8 +75,15 @@ export async function cancelAppointment(
     throw new ApiError(400, 'Completed appointments cannot be cancelled');
   }
 
+  const doctor = await Doctor.findById(appointment.doctorId);
+  if (!doctor) {
+    throw new ApiError(404, 'Doctor not found');
+  }
+
   appointment.status = 'cancelled';
   await appointment.save();
+
+  emitAppointmentEvent('appointment.cancelled', appointment, doctor.userId.toString());
 
   return appointment;
 }
@@ -86,6 +108,8 @@ export async function confirmAppointment(
 
   appointment.status = 'confirmed';
   await appointment.save();
+
+  emitAppointmentEvent('appointment.confirmed', appointment, doctor.userId.toString());
 
   return appointment;
 }

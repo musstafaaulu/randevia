@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { isEventPublisherConnected } from '../messaging/eventPublisher';
 
 const router = Router();
 
@@ -8,6 +9,9 @@ router.get('/', (_req, res) => {
     service: 'appointment-service',
     status: 'ok',
     timestamp: new Date().toISOString(),
+    dependencies: {
+      rabbitmq: isEventPublisherConnected() ? 'connected' : 'disconnected',
+    },
   });
 });
 
