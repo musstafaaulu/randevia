@@ -1,6 +1,26 @@
 name: randevia
 
+# The whole system: `docker compose up -d --build`, then use http://localhost:3000.
+# Only the api-gateway (and the RabbitMQ management UI) is published on the
+# host; the services and their databases are reachable only inside the
+# compose network, so all client traffic goes through the gateway.
+#
+# Secrets fall back to development defaults; override them in a .env file
+# next to this one (see .env.example) for anything but local use.
+
+x-mongo-healthcheck: &mongo-healthcheck
+  test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 20s
+
+x-service: &service
+  restart: unless-stopped
+  init: true
+
 services:
+  # ---------------------------------------------------------------- infra --
   rabbitmq:
     image: rabbitmq:3-management
     container_name: randevia-rabbitmq
@@ -12,7 +32,7 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
     ports:
-      - '5672:5672' # AMQP
+      - '5672:5672' # AMQP (for running services and tests on the host)
       - '15672:15672' # Management UI
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
@@ -23,5 +43,118 @@ services:
       retries: 5
       start_period: 20s
 
+  # Database per service: each service owns its own MongoDB instance.
+  mongo-auth:
+    image: mongo:7
+    container_name: randevia-mongo-auth
+    restart: unless-stopped
+    volumes:
+      - mongo_auth_data:/data/db
+    healthcheck: *mongo-healthcheck
+
+  mongo-appointment:
+    image: mongo:7
+    container_name: randevia-mongo-appointment
+    restart: unless-stopped
+    volumes:
+      - mongo_appointment_data:/data/db
+    healthcheck: *mongo-healthcheck
+
+  mongo-notification:
+    image: mongo:7
+    container_name: randevia-mongo-notification
+    restart: unless-stopped
+    volumes:
+      - mongo_notification_data:/data/db
+    healthcheck: *mongo-healthcheck
+
+  # ------------------------------------------------------------- services --
+  auth-service:
+    <<: *service
+    build: ./auth-service
+    image: randevia/auth-service
+    container_name: randevia-auth-service
+    environment:
+      PORT: 4000
+      MONGO_URI: mongodb://mongo-auth:27017/randevia_auth
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@randevia.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin-password-123}
+      ADMIN_NAME: ${ADMIN_NAME:-Randevia Admin}
+      TRUST_PROXY: 1
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      mongo-auth:
+        condition: service_healthy
+
+  appointment-service:
+    <<: *service
+    build: ./appointment-service
+    image: randevia/appointment-service
+    container_name: randevia-appointment-service
+    environment:
+      PORT: 4001
+      MONGO_URI: mongodb://mongo-appointment:27017/randevia_appointment
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret}
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672
+      RABBITMQ_EXCHANGE: randevia.events
+      TRUST_PROXY: 1
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      mongo-appointment:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  notification-service:
+    <<: *service
+    build: ./notification-service
+    image: randevia/notification-service
+    container_name: randevia-notification-service
+    environment:
+      PORT: 4002
+      MONGO_URI: mongodb://mongo-notification:27017/randevia_notification
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret}
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672
+      RABBITMQ_EXCHANGE: randevia.events
+      NOTIFICATION_QUEUE: notification-service.appointment-events
+      TRUST_PROXY: 1
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      mongo-notification:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  api-gateway:
+    <<: *service
+    build: ./api-gateway
+    image: randevia/api-gateway
+    container_name: randevia-api-gateway
+    environment:
+      PORT: 3000
+      AUTH_SERVICE_URL: http://auth-service:4000
+      APPOINTMENT_SERVICE_URL: http://appointment-service:4001
+      NOTIFICATION_SERVICE_URL: http://notification-service:4002
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-300}
+      AUTH_RATE_LIMIT_MAX: ${AUTH_RATE_LIMIT_MAX:-20}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - '${GATEWAY_PORT:-3000}:3000'
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      appointment-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+
 volumes:
   rabbitmq_data:
+  mongo_auth_data:
+  mongo_appointment_data:
+  mongo_notification_data:
