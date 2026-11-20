@@ -11,6 +11,7 @@ import routes from './routes';
 import logger from './utils/logger';
 
 const app: Application = express();
+app.set('trust proxy', env.TRUST_PROXY);
 
 app.use(helmet());
 app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
@@ -19,9 +20,13 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 app.use(
-  morgan('combined', {
-    stream: { write: (message: string) => logger.http(message.trim()) },
-  }),
+  // The api-gateway tags each request with X-Request-Id; log it to correlate.
+  morgan(
+    ':req[x-request-id] :remote-addr ":method :url" :status :res[content-length] - :response-time ms',
+    {
+      stream: { write: (message: string) => logger.http(message.trim()) },
+    },
+  ),
 );
 
 app.use(

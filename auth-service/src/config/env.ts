@@ -11,6 +11,9 @@ const envSchema = z.object({
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
   RABBITMQ_URL: z.string().default('amqp://localhost:5672'),
   CORS_ORIGIN: z.string().default('*'),
+  // Reverse proxies in front of the service (1 behind the api-gateway), so
+  // req.ip and the rate limiter use the client IP from X-Forwarded-For.
+  TRUST_PROXY: z.coerce.number().int().min(0).default(0),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'debug']).default('info'),
   // Optional bootstrap admin, created on startup when both are set.
   ADMIN_EMAIL: z.string().trim().toLowerCase().email().optional(),

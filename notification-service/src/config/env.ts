@@ -14,6 +14,9 @@ const envSchema = z.object({
   MESSAGE_RETRY_DELAY_MS: z.coerce.number().int().positive().default(5000),
   NOTIFICATION_TIMEZONE: z.string().default('Europe/Istanbul'),
   CORS_ORIGIN: z.string().default('*'),
+  // Reverse proxies in front of the service (1 behind the api-gateway), so
+  // req.ip and the rate limiter use the client IP from X-Forwarded-For.
+  TRUST_PROXY: z.coerce.number().int().min(0).default(0),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'debug']).default('info'),
 });
 
