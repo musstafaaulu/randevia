@@ -213,4 +213,30 @@ describe('ensureAdminUser', () => {
 
     expect((await User.findById(existing._id))?.role).toBe('admin');
   });
+
+  it('rotates the admin password when ADMIN_PASSWORD changes', async () => {
+    env.ADMIN_EMAIL = 'root@example.com';
+    env.ADMIN_PASSWORD = 'old-password-123';
+    await ensureAdminUser();
+
+    env.ADMIN_PASSWORD = 'new-password-456';
+    await ensureAdminUser();
+
+    const login = (password: string) =>
+      request(app).post('/api/v1/auth/login').send({ email: 'root@example.com', password });
+    expect((await login('old-password-123')).status).toBe(401);
+    expect((await login('new-password-456')).status).toBe(200);
+  });
+
+  it('leaves the password hash alone when it already matches', async () => {
+    env.ADMIN_EMAIL = 'root@example.com';
+    env.ADMIN_PASSWORD = 'root-password-123';
+    await ensureAdminUser();
+    const before = await User.findOne({ email: 'root@example.com' }).select('+password');
+
+    await ensureAdminUser();
+
+    const after = await User.findOne({ email: 'root@example.com' }).select('+password');
+    expect(after?.password).toBe(before?.password);
+  });
 });

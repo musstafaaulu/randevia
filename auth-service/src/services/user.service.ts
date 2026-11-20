@@ -41,18 +41,27 @@ export async function updateUserRole(actorId: string, userId: string, role: Role
 }
 
 // Self-registration only creates patients, so the first admin is bootstrapped
-// from ADMIN_EMAIL / ADMIN_PASSWORD on startup. An existing account with that
-// email is promoted; its password is left untouched.
+// from ADMIN_EMAIL / ADMIN_PASSWORD on startup. The environment is the source
+// of truth: an existing account with that email is promoted to admin and gets
+// the configured password, so changing ADMIN_PASSWORD and restarting rotates it.
 export async function ensureAdminUser(): Promise<void> {
   const { ADMIN_EMAIL: email, ADMIN_PASSWORD: password, ADMIN_NAME: name } = env;
   if (!email || !password) return;
 
-  const existing = await User.findOne({ email });
+  const existing = await User.findOne({ email }).select('+password');
   if (existing) {
+    const changes: string[] = [];
     if (existing.role !== 'admin') {
       existing.role = 'admin';
+      changes.push('role');
+    }
+    if (!(await existing.comparePassword(password))) {
+      existing.password = password; // hashed by the pre-save hook
+      changes.push('password');
+    }
+    if (changes.length > 0) {
       await existing.save();
-      logger.info('Existing user promoted to admin', { email });
+      logger.info('Admin user updated from environment', { email, changed: changes });
     }
     return;
   }

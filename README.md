@@ -34,7 +34,7 @@ Sistem; tek giriş noktası olan bir **API Gateway**, kendi veritabanına sahip 
 - **Rol tabanlı yetkilendirme:** `patient`, `doctor`, `admin` rolleri; doktor rolü yalnızca admin tarafından atanabilir.
 - **Güvenlik:** JWT (access + refresh token), httpOnly refresh cookie, bcrypt ile parola özeti, helmet, CORS, rate limiting.
 - **Gözlemlenebilirlik:** Her isteğe atanan `X-Request-Id` gateway'den servislere taşınır ve tüm loglarda yer alır; yapılandırılmış JSON loglar.
-- **Kalite:** TypeScript strict mode, Zod ile girdi ve ortam değişkeni doğrulaması, ESLint + Prettier, 141 birim/entegrasyon testi ve 34 adımlık uçtan uca test.
+- **Kalite:** TypeScript strict mode, Zod ile girdi ve ortam değişkeni doğrulaması, ESLint + Prettier, 153 birim/entegrasyon testi ve 34 adımlık uçtan uca test.
 
 ---
 
@@ -155,11 +155,16 @@ Her servis aynı iskeleti paylaşır: ortam değişkeni doğrulama (Zod), winsto
 git clone <repo-url> randevia
 cd randevia
 
-# (İsteğe bağlı) gizli değerleri değiştirmek için
+# Gizli değerleri tanımla (zorunlu): .env içinde JWT_ACCESS_SECRET,
+# JWT_REFRESH_SECRET ve ADMIN_PASSWORD alanlarını doldur.
 cp .env.example .env
+# Rastgele bir secret üretmek için:
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 docker compose up -d --build
 ```
+
+Repoda hiçbir gizli değerin varsayılanı yoktur: `.env` eksikse `docker compose up` hangi değişkenin eksik olduğunu söyleyerek durur. Servisler production modunda 32 karakterden kısa JWT secret'ıyla açılmaz.
 
 Tüm konteynerler sağlık kontrollerine göre sırayla başlar: önce MongoDB'ler ve RabbitMQ, ardından servisler, en son gateway.
 
@@ -173,13 +178,13 @@ curl http://localhost:3000/api/v1/health/services   # tüm servislerin durumu
 | http://localhost:3000 | API Gateway (tüm API istekleri) |
 | http://localhost:15672 | RabbitMQ yönetim paneli (`guest` / `guest`) |
 
-Varsayılan admin hesabı: `admin@randevia.local` / `admin-password-123` (`.env` ile değiştirilebilir).
+Admin hesabı: `ADMIN_EMAIL` (varsayılan `admin@randevia.local`) ve `.env`'de belirlediğin `ADMIN_PASSWORD`. Şifre her açılışta `.env`'den yeniden uygulanır; değiştirip `docker compose up -d` çalıştırmak şifreyi yeniler.
 
 Sistemi durdurmak için `docker compose down`, verileri de silmek için `docker compose down -v`.
 
 ### Uçtan uca testi çalıştırma
 
-Sistem ayaktayken:
+Sistem ayaktayken (admin bilgileri kök `.env` dosyasından okunur):
 
 ```bash
 node scripts/e2e.mjs
@@ -215,9 +220,9 @@ Kök dizindeki [`.env.example`](.env.example) docker compose için değiştirile
 
 | Değişken | Varsayılan | Açıklama |
 |---|---|---|
-| `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | geliştirme değeri | Token imzalama anahtarları (tüm servislerde aynı access secret) |
+| `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | — (zorunlu) | Token imzalama anahtarları (tüm servislerde aynı access secret); production'da en az 32 karakter |
 | `JWT_ACCESS_EXPIRES_IN` / `JWT_REFRESH_EXPIRES_IN` | `15m` / `7d` | Token ömürleri |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `admin@randevia.local` / … | Açılışta oluşturulan ilk admin |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `admin@randevia.local` / — (zorunlu) | Açılışta oluşturulan admin; şifre her açılışta yeniden uygulanır |
 | `CORS_ORIGIN` | `*` | `*` veya virgülle ayrılmış origin listesi (cookie yalnızca listeyle) |
 | `RATE_LIMIT_MAX` / `AUTH_RATE_LIMIT_MAX` | `300` / `20` | 15 dakikada IP başına genel / giriş-kayıt-yenileme limiti |
 | `PROXY_TIMEOUT_MS` | `10000` | Gateway'in servis yanıtını bekleme süresi (aşılırsa 504) |
@@ -290,7 +295,7 @@ curl -s -X POST $GW/api/v1/auth/register -H 'Content-Type: application/json' \
 
 # 2) Doktor adayı önce hasta olarak kayıt olur, admin rolünü doktor yapar
 ADMIN=$(curl -s -X POST $GW/api/v1/auth/login -H 'Content-Type: application/json' \
-  -d '{"email":"admin@randevia.local","password":"admin-password-123"}' | jq -r .data.accessToken)
+  -d "{\"email\":\"admin@randevia.local\",\"password\":\"$ADMIN_PASSWORD\"}" | jq -r .data.accessToken)
 curl -s -X PATCH $GW/api/v1/auth/users/<kullaniciId>/role \
   -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' -d '{"role":"doctor"}'
 
@@ -317,11 +322,11 @@ Her servis, gerçek MongoDB ve RabbitMQ'ya karşı çalışan entegrasyon testle
 
 | Servis | Test sayısı | Kapsanan başlıca senaryolar |
 |---|---:|---|
-| auth-service | **35** ✅ | Kayıt, giriş, refresh (cookie ve gövde), `/me`, doktor rolüyle kendi kendine kayıt reddi, admin rol atama ve listeleme, yetkisiz erişim (401/403), admin'in kendi rolünü değiştirememesi, admin bootstrap, validate middleware (Express 5 `req.query`) |
-| appointment-service | **44** ✅ | Doktor profili ve müsaitlik, randevu oluşturma, çakışma (409), onay/iptal kuralları, rol kısıtları, olay yayınlama, RabbitMQ kapalıyken iş akışının sürmesi, yeniden bağlanma, validate middleware |
-| notification-service | **35** ✅ | Olaydan bildirim üretimi, şablonlar, ack/nack kararları, gecikmeli retry, deneme hakkı bitince DLQ, bozuk mesajın DLQ'ya gitmesi, idempotency, sayfalama |
+| auth-service | **41** ✅ | Kayıt, giriş, refresh (cookie ve gövde), `/me`, doktor rolüyle kendi kendine kayıt reddi, admin rol atama ve listeleme, yetkisiz erişim (401/403), admin'in kendi rolünü değiştirememesi, admin bootstrap ve şifre rotasyonu, production'da zayıf secret reddi, validate middleware (Express 5 `req.query`) |
+| appointment-service | **47** ✅ | Doktor profili ve müsaitlik, randevu oluşturma, çakışma (409), onay/iptal kuralları, rol kısıtları, olay yayınlama, RabbitMQ kapalıyken iş akışının sürmesi, yeniden bağlanma, ortam değişkeni doğrulaması, validate middleware |
+| notification-service | **38** ✅ | Olaydan bildirim üretimi, şablonlar, ack/nack kararları, gecikmeli retry, deneme hakkı bitince DLQ, bozuk mesajın DLQ'ya gitmesi, idempotency, sayfalama, ortam değişkeni doğrulaması |
 | api-gateway | **27** ✅ | Yönlendirme ve yol koruma, gövde/başlık/cookie aktarımı, request id üretme/taşıma/temizleme, helmet, CORS (liste, `*`, preflight, upstream başlıklarının ezilmesi), genel ve giriş limitleri (429), 502/504, sağlık kontrolleri |
-| **Toplam** | **141** ✅ | |
+| **Toplam** | **153** ✅ | |
 
 **Uçtan uca test** (`scripts/e2e.mjs`, `docker compose up` ile ayağa kalkan gerçek sisteme karşı, yalnızca gateway üzerinden): **34/34 kontrol başarılı** ✅ — sağlık, request id, güvenlik başlıkları, rate limit başlıkları, kayıt, rol atama, doktor profili ve müsaitlik, randevu alma, çift rezervasyon engeli, onay, iptal, RabbitMQ üzerinden hasta ve doktora iletilen bildirimler, sayfalama ve kuyruk topolojisi.
 
@@ -396,6 +401,7 @@ Herkes yalnızca **hasta** olarak kayıt olabilir; `role: "doctor"` ile kayıt i
 - **Graceful shutdown:** `SIGTERM` alındığında HTTP sunucusu yeni istek almayı bırakır, bildirim servisi önce tüketiciyi iptal edip işlenmekte olan mesajları bitirir, ardından RabbitMQ ve MongoDB bağlantıları kapatılır. Docker imajlarında `node` doğrudan ana süreçtir, böylece sinyal kaybolmaz.
 - **Güvenli imajlar:** Multi-stage build ile çalışma imajında yalnızca üretim bağımlılıkları ve derlenmiş kod bulunur; konteynerler root olmayan `node` kullanıcısıyla çalışır.
 - **Fail-fast yapılandırma:** Tüm ortam değişkenleri açılışta Zod ile doğrulanır; eksik veya hatalı yapılandırmada servis hiç başlamaz.
+- **Varsayılan gizli değer yok:** JWT secret'ları ve admin şifresi repoda tutulmaz, `.env`'den gelir; production'da kısa (ör. `changeme`) JWT secret'ları reddedilir. JWT secret'ını bilen biri herhangi bir kullanıcı ve rol için token üretebileceği için bu bir zorunluluktur.
 
 ---
 

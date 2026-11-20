@@ -4,15 +4,39 @@
 //   docker compose up -d --build
 //   node scripts/e2e.mjs
 //
-// Env: GATEWAY_URL (default http://localhost:3000), ADMIN_EMAIL, ADMIN_PASSWORD
-// (defaults match docker-compose.yml), RABBITMQ_API (management API, optional).
+// Env: GATEWAY_URL (default http://localhost:3000), ADMIN_EMAIL and
+// ADMIN_PASSWORD (default: the values in the root .env that docker compose
+// uses), RABBITMQ_API (management API, optional).
 // Each run uses fresh e-mail addresses, so it can be repeated; note that the
 // gateway allows AUTH_RATE_LIMIT_MAX credential calls per 15 minutes and IP,
 // and one run makes 6 of them.
 
+import { readFileSync } from 'node:fs';
+
+// Minimal .env reader (KEY=value lines, optional quotes).
+function readComposeEnv() {
+  let file;
+  try {
+    file = readFileSync(new URL('../.env', import.meta.url), 'utf8');
+  } catch {
+    return {};
+  }
+  const entries = [];
+  for (const line of file.split(/\r?\n/)) {
+    const match = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
+    if (match) entries.push([match[1], match[2].replace(/^(['"])(.*)\1$/, '$2')]);
+  }
+  return Object.fromEntries(entries);
+}
+
+const composeEnv = readComposeEnv();
 const GATEWAY = process.env.GATEWAY_URL ?? 'http://localhost:3000';
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@randevia.local';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'admin-password-123';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || composeEnv.ADMIN_EMAIL || 'admin@randevia.local';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || composeEnv.ADMIN_PASSWORD;
+if (!ADMIN_PASSWORD) {
+  console.error('ADMIN_PASSWORD is not set, neither in the environment nor in .env.');
+  process.exit(1);
+}
 const RABBITMQ_API = process.env.RABBITMQ_API ?? 'http://localhost:15672/api';
 
 const runId = Date.now().toString(36);

@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { z } from 'zod';
 
-const envSchema = z.object({
+const baseSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(4001),
   MONGO_URI: z.string().min(1, 'MONGO_URI is required'),
@@ -13,6 +13,24 @@ const envSchema = z.object({
   // req.ip and the rate limiter use the client IP from X-Forwarded-For.
   TRUST_PROXY: z.coerce.number().int().min(0).default(0),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'debug']).default('info'),
+});
+
+// Placeholder secrets like "changeme" must never reach production: anyone who
+// knows a JWT secret can forge tokens for any user and role.
+const MIN_PRODUCTION_SECRET_LENGTH = 32;
+const PRODUCTION_SECRETS = ['JWT_ACCESS_SECRET'] as const;
+
+const envSchema = baseSchema.superRefine((config, ctx) => {
+  if (config.NODE_ENV !== 'production') return;
+  for (const key of PRODUCTION_SECRETS) {
+    if (config[key].length < MIN_PRODUCTION_SECRET_LENGTH) {
+      ctx.addIssue({
+        code: 'custom',
+        path: [key],
+        message: `must be at least ${MIN_PRODUCTION_SECRET_LENGTH} characters in production`,
+      });
+    }
+  }
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -5,8 +5,8 @@ name: randevia
 # host; the services and their databases are reachable only inside the
 # compose network, so all client traffic goes through the gateway.
 #
-# Secrets fall back to development defaults; override them in a .env file
-# next to this one (see .env.example) for anything but local use.
+# Secrets have no defaults: copy .env.example to .env and fill them in first;
+# compose refuses to start while one is missing.
 
 x-mongo-healthcheck: &mongo-healthcheck
   test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
@@ -77,12 +77,12 @@ services:
     environment:
       PORT: 4000
       MONGO_URI: mongodb://mongo-auth:27017/randevia_auth
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET is not set. Copy .env.example to .env and fill it in}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is not set. Copy .env.example to .env and fill it in}
       JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@randevia.local}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin-password-123}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is not set. Copy .env.example to .env and fill it in}
       ADMIN_NAME: ${ADMIN_NAME:-Randevia Admin}
       TRUST_PROXY: 1
       LOG_LEVEL: ${LOG_LEVEL:-info}
@@ -98,7 +98,7 @@ services:
     environment:
       PORT: 4001
       MONGO_URI: mongodb://mongo-appointment:27017/randevia_appointment
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET is not set. Copy .env.example to .env and fill it in}
       RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672
       RABBITMQ_EXCHANGE: randevia.events
       TRUST_PROXY: 1
@@ -117,7 +117,7 @@ services:
     environment:
       PORT: 4002
       MONGO_URI: mongodb://mongo-notification:27017/randevia_notification
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET is not set. Copy .env.example to .env and fill it in}
       RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672
       RABBITMQ_EXCHANGE: randevia.events
       NOTIFICATION_QUEUE: notification-service.appointment-events
