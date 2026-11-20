@@ -1,0 +1,60 @@
+{
+  "name": "api-gateway",
+  "version": "1.0.0",
+  "description": "Randevia - API gateway: single entry point that routes /api/v1 traffic to the microservices",
+  "main": "dist/server.js",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "lint:fix": "eslint \"src/**/*.ts\" \"tests/**/*.ts\" --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage --runInBand"
+  },
+  "keywords": [
+    "randevia",
+    "api-gateway",
+    "microservice"
+  ],
+  "author": "Mustafa Ulu",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.10",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.5",
+    "helmet": "^8.3.0",
+    "http-proxy-middleware": "^3.0.11",
+    "morgan": "^1.12.1",
+    "winston": "^3.19.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^26.6.6",
+    "@types/supertest": "^7.2.1",
+    "@typescript-eslint/eslint-plugin": "^8.73.0",
+    "@typescript-eslint/parser": "^8.73.0",
+    "eslint": "^10.15.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.14.0",
+    "jest": "^30.5.2",
+    "prettier": "^3.10.1",
+    "supertest": "^7.3.2",
+    "ts-jest": "^29.4.15",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3"
+  }
+}
