@@ -11,7 +11,9 @@ module.exports = [
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        project: './tsconfig.json',
+        // tsconfig.json excludes tests/ from the build; this one covers both.
+        project: './tsconfig.eslint.json',
+        tsconfigRootDir: __dirname,
         sourceType: 'module',
       },
       globals: {
@@ -24,7 +26,10 @@ module.exports = [
     },
     rules: {
       ...tsPlugin.configs.recommended.rules,
-      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
       'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
   },

@@ -5,7 +5,9 @@ import { env } from '../config/env';
 import { ApiError } from '../utils/ApiError';
 import logger from '../utils/logger';
 
-function isDuplicateKeyError(err: unknown): err is { code: number; keyValue?: Record<string, unknown> } {
+function isDuplicateKeyError(
+  err: unknown,
+): err is { code: number; keyValue?: Record<string, unknown> } {
   return typeof err === 'object' && err !== null && (err as { code?: number }).code === 11000;
 }
 

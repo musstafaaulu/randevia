@@ -1,5 +1,10 @@
 import { Router } from 'express';
-import { loginHandler, meHandler, refreshHandler, registerHandler } from '../controllers/auth.controller';
+import {
+  loginHandler,
+  meHandler,
+  refreshHandler,
+  registerHandler,
+} from '../controllers/auth.controller';
 import { authenticate } from '../middlewares/authenticate';
 import { validate } from '../middlewares/validate';
 import { loginSchema, refreshSchema, registerSchema } from '../validations/auth.validation';

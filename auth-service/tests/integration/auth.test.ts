@@ -135,7 +135,9 @@ describe('POST /api/v1/auth/refresh', () => {
   });
 
   it('rejects an invalid refresh token', async () => {
-    const res = await request(app).post('/api/v1/auth/refresh').send({ refreshToken: 'not-a-real-token' });
+    const res = await request(app)
+      .post('/api/v1/auth/refresh')
+      .send({ refreshToken: 'not-a-real-token' });
 
     expect(res.status).toBe(401);
   });
@@ -146,7 +148,9 @@ describe('GET /api/v1/auth/me', () => {
     const registerRes = await request(app).post('/api/v1/auth/register').send(baseUser);
     const { accessToken } = registerRes.body.data;
 
-    const res = await request(app).get('/api/v1/auth/me').set('Authorization', `Bearer ${accessToken}`);
+    const res = await request(app)
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${accessToken}`);
 
     expect(res.status).toBe(200);
     expect(res.body.data.user.email).toBe(baseUser.email);
@@ -159,7 +163,9 @@ describe('GET /api/v1/auth/me', () => {
   });
 
   it('rejects requests with an invalid token', async () => {
-    const res = await request(app).get('/api/v1/auth/me').set('Authorization', 'Bearer invalid-token');
+    const res = await request(app)
+      .get('/api/v1/auth/me')
+      .set('Authorization', 'Bearer invalid-token');
 
     expect(res.status).toBe(401);
   });

@@ -25,8 +25,16 @@ function sign(payload: Record<string, unknown>, secret: string, expiresIn: strin
 }
 
 export function generateTokenPair(sub: string, role: Role): TokenPair {
-  const accessToken = sign({ sub, role, type: 'access' }, env.JWT_ACCESS_SECRET, env.JWT_ACCESS_EXPIRES_IN);
-  const refreshToken = sign({ sub, role, type: 'refresh' }, env.JWT_REFRESH_SECRET, env.JWT_REFRESH_EXPIRES_IN);
+  const accessToken = sign(
+    { sub, role, type: 'access' },
+    env.JWT_ACCESS_SECRET,
+    env.JWT_ACCESS_EXPIRES_IN,
+  );
+  const refreshToken = sign(
+    { sub, role, type: 'refresh' },
+    env.JWT_REFRESH_SECRET,
+    env.JWT_REFRESH_EXPIRES_IN,
+  );
   return { accessToken, refreshToken };
 }
 

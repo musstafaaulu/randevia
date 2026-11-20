@@ -51,8 +51,9 @@ const event: AppointmentEvent = {
 function load() {
   jest.resetModules();
   const amqp = jest.requireMock('amqplib').default as { connect: jest.Mock };
-  const publisher =
-    require('../../src/messaging/eventPublisher') as typeof import('../../src/messaging/eventPublisher');
+  const publisher = jest.requireActual<typeof import('../../src/messaging/eventPublisher')>(
+    '../../src/messaging/eventPublisher',
+  );
   const logger = jest.requireMock('../../src/utils/logger').default as { error: jest.Mock };
   return { amqp, publisher, logger };
 }
