@@ -12,7 +12,16 @@ export function validate(schemas: ValidationSchemas) {
     try {
       if (schemas.body) req.body = schemas.body.parse(req.body);
       if (schemas.params) req.params = schemas.params.parse(req.params) as typeof req.params;
-      if (schemas.query) req.query = schemas.query.parse(req.query) as typeof req.query;
+      if (schemas.query) {
+        // Express 5 exposes req.query as a getter-only property, so plain
+        // assignment throws; shadow it on the request instance instead.
+        Object.defineProperty(req, 'query', {
+          value: schemas.query.parse(req.query),
+          writable: true,
+          enumerable: true,
+          configurable: true,
+        });
+      }
       next();
     } catch (err) {
       next(err);
