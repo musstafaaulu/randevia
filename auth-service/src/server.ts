@@ -1,10 +1,12 @@
 import app from './app';
 import { connectDB, disconnectDB } from './config/db';
 import { env } from './config/env';
+import { ensureAdminUser } from './services/user.service';
 import logger from './utils/logger';
 
 async function start(): Promise<void> {
   await connectDB();
+  await ensureAdminUser();
 
   const server = app.listen(env.PORT, () => {
     logger.info(`auth-service listening on port ${env.PORT} [${env.NODE_ENV}]`);

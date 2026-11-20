@@ -12,6 +12,10 @@ const envSchema = z.object({
   RABBITMQ_URL: z.string().default('amqp://localhost:5672'),
   CORS_ORIGIN: z.string().default('*'),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'debug']).default('info'),
+  // Optional bootstrap admin, created on startup when both are set.
+  ADMIN_EMAIL: z.string().trim().toLowerCase().email().optional(),
+  ADMIN_PASSWORD: z.string().min(8).max(72).optional(),
+  ADMIN_NAME: z.string().trim().min(2).max(100).default('Randevia Admin'),
 });
 
 const parsed = envSchema.safeParse(process.env);

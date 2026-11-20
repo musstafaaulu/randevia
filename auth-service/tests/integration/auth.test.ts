@@ -42,13 +42,13 @@ describe('POST /api/v1/auth/register', () => {
     expect(extractCookie(res)).toContain('refreshToken=');
   });
 
-  it('allows registering as a doctor', async () => {
+  it('rejects self-registration as a doctor', async () => {
     const res = await request(app)
       .post('/api/v1/auth/register')
       .send({ ...baseUser, email: 'doc@example.com', role: 'doctor' });
 
-    expect(res.status).toBe(201);
-    expect(res.body.data.user.role).toBe('doctor');
+    expect(res.status).toBe(400);
+    expect(await User.countDocuments({ email: 'doc@example.com' })).toBe(0);
   });
 
   it('rejects self-registration as admin', async () => {
