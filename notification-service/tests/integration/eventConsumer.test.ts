@@ -40,6 +40,16 @@ async function deleteTopology(channel: Channel): Promise<void> {
   await channel.deleteExchange(env.RABBITMQ_EXCHANGE);
 }
 
+// Waits until both notifications are sent, not merely stored: returning while
+// one is still pending lets afterEach delete it mid-save, which fails the
+// processing and leaks a retry into the next test's dead-letter queue.
+function waitForDelivered(eventId: string) {
+  return waitFor(async () => {
+    const found = await Notification.find({ eventId, status: 'sent' });
+    return found.length === 2 && found;
+  });
+}
+
 function publish(routingKey: string, body: unknown): void {
   const content = Buffer.from(typeof body === 'string' ? body : JSON.stringify(body));
   publisher.publish(env.RABBITMQ_EXCHANGE, routingKey, content, { persistent: true });
@@ -76,10 +86,7 @@ describe('appointment event consumer (RabbitMQ)', () => {
 
     publish(event.eventType, event);
 
-    const notifications = await waitFor(async () => {
-      const found = await Notification.find({ eventId: event.eventId, status: 'sent' });
-      return found.length === 2 && found;
-    });
+    const notifications = await waitForDelivered(event.eventId);
     expect(notifications.map((n) => n.recipientRole).sort()).toEqual(['doctor', 'patient']);
   });
 
@@ -90,9 +97,7 @@ describe('appointment event consumer (RabbitMQ)', () => {
 
       publish(eventType, event);
 
-      await waitFor(
-        async () => (await Notification.countDocuments({ eventId: event.eventId })) === 2,
-      );
+      await waitForDelivered(event.eventId);
     },
   );
 
@@ -103,7 +108,7 @@ describe('appointment event consumer (RabbitMQ)', () => {
 
     const dead = await waitFor(async () => publisher.get(DEAD_LETTER_QUEUE, { noAck: true }));
     expect(dead.content.toString()).toBe('{this is not json');
-    await waitFor(async () => (await Notification.countDocuments({ eventId: next.eventId })) === 2);
+    await waitForDelivered(next.eventId);
   });
 
   it('retries a transient failure via the delay queue and then succeeds', async () => {
@@ -114,9 +119,7 @@ describe('appointment event consumer (RabbitMQ)', () => {
 
     publish(event.eventType, event);
 
-    await waitFor(
-      async () => (await Notification.countDocuments({ eventId: event.eventId })) === 2,
-    );
+    await waitForDelivered(event.eventId);
     expect(spy).toHaveBeenCalledTimes(2);
   });
 
