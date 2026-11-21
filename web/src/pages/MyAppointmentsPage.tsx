@@ -2,10 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { cancelAppointment, confirmAppointment, listMyAppointments } from '../api/appointments';
 import { ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { EmptyState } from '../components/EmptyState';
 import { ListSkeleton } from '../components/Skeleton';
 import { useSocket } from '../socket/SocketContext';
 import type { Appointment, AppointmentStatus } from '../types/api';
+
+type PendingAction = { type: 'confirm' | 'cancel'; appointment: Appointment };
 
 const STATUS_LABELS: Record<AppointmentStatus, string> = {
   pending: 'Onay bekliyor',
@@ -24,6 +27,7 @@ export function MyAppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
 
   const load = useCallback(() => {
     listMyAppointments()
@@ -45,25 +49,21 @@ export function MyAppointmentsPage() {
     };
   }, [socket, load]);
 
-  async function handleConfirm(appointment: Appointment) {
+  async function runPendingAction() {
+    if (!pendingAction) return;
+    const { type, appointment } = pendingAction;
     setBusyId(appointment._id);
     try {
-      await confirmAppointment(appointment._id);
+      if (type === 'confirm') {
+        await confirmAppointment(appointment._id);
+      } else {
+        await cancelAppointment(appointment._id);
+      }
       load();
+      setPendingAction(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'İşlem başarısız oldu.');
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function handleCancel(appointment: Appointment) {
-    setBusyId(appointment._id);
-    try {
-      await cancelAppointment(appointment._id);
-      load();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'İşlem başarısız oldu.');
+      setPendingAction(null);
     } finally {
       setBusyId(null);
     }
@@ -93,7 +93,7 @@ export function MyAppointmentsPage() {
                   <button
                     className="primary-button"
                     disabled={busyId === appointment._id}
-                    onClick={() => handleConfirm(appointment)}
+                    onClick={() => setPendingAction({ type: 'confirm', appointment })}
                   >
                     Onayla
                   </button>
@@ -103,7 +103,7 @@ export function MyAppointmentsPage() {
                     <button
                       className="danger-button"
                       disabled={busyId === appointment._id}
-                      onClick={() => handleCancel(appointment)}
+                      onClick={() => setPendingAction({ type: 'cancel', appointment })}
                     >
                       İptal Et
                     </button>
@@ -113,6 +113,24 @@ export function MyAppointmentsPage() {
           ))}
         </ul>
       )}
+
+      <ConfirmDialog
+        open={pendingAction !== null}
+        title={pendingAction?.type === 'confirm' ? 'Randevuyu onayla' : 'Randevuyu iptal et'}
+        message={
+          pendingAction
+            ? pendingAction.type === 'confirm'
+              ? `${formatDate(pendingAction.appointment.date)} tarihli randevuyu onaylamak istediğinize emin misiniz?`
+              : `${formatDate(pendingAction.appointment.date)} tarihli randevuyu iptal etmek istediğinize emin misiniz?`
+            : ''
+        }
+        confirmLabel={pendingAction?.type === 'confirm' ? 'Onayla' : 'Evet, iptal et'}
+        cancelLabel="Vazgeç"
+        danger={pendingAction?.type === 'cancel'}
+        busy={busyId !== null}
+        onConfirm={runPendingAction}
+        onCancel={() => setPendingAction(null)}
+      />
     </div>
   );
 }

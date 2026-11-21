@@ -839,6 +839,66 @@ textarea {
   font-weight: 600;
 }
 
+/* -------------------------------------------------------------- modal -- */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 50;
+  animation: modal-fade-in 0.15s ease-out;
+}
+
+.modal-dialog {
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.3);
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 420px;
+  animation: modal-scale-in 0.15s ease-out;
+}
+
+.modal-dialog h2 {
+  margin: 0 0 0.6rem;
+  font-size: 1.2rem;
+}
+
+.modal-dialog p {
+  margin: 0 0 1.5rem;
+  color: var(--color-text-muted);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+@keyframes modal-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-scale-in {
+  from {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 /* ------------------------------------------------------------- toasts -- */
 
 .toast-stack {

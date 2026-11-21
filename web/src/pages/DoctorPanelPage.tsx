@@ -3,6 +3,7 @@ import { confirmAppointment, listMyAppointments } from '../api/appointments';
 import { ApiError } from '../api/client';
 import { addMyAvailability, getDoctor, listDoctors, upsertMyDoctorProfile } from '../api/doctors';
 import { useAuth } from '../auth/AuthContext';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { EmptyState } from '../components/EmptyState';
 import { Spinner } from '../components/Spinner';
 import { useSocket } from '../socket/SocketContext';
@@ -30,6 +31,7 @@ export function DoctorPanelPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [confirmTarget, setConfirmTarget] = useState<Appointment | null>(null);
 
   // There is no "my profile" endpoint; the doctor list already carries
   // userId, and /auth/me's id is the same value a doctor's own profile was
@@ -100,13 +102,16 @@ export function DoctorPanelPage() {
     }
   }
 
-  async function handleConfirm(appointment: Appointment) {
-    setBusyId(appointment._id);
+  async function handleConfirm() {
+    if (!confirmTarget) return;
+    setBusyId(confirmTarget._id);
     try {
-      await confirmAppointment(appointment._id);
+      await confirmAppointment(confirmTarget._id);
       loadPending();
+      setConfirmTarget(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Onaylanamadı.');
+      setConfirmTarget(null);
     } finally {
       setBusyId(null);
     }
@@ -137,7 +142,7 @@ export function DoctorPanelPage() {
                 <button
                   className="primary-button"
                   disabled={busyId === appointment._id}
-                  onClick={() => handleConfirm(appointment)}
+                  onClick={() => setConfirmTarget(appointment)}
                 >
                   Onayla
                 </button>
@@ -146,6 +151,19 @@ export function DoctorPanelPage() {
           </ul>
         )}
       </section>
+
+      <ConfirmDialog
+        open={confirmTarget !== null}
+        title="Randevuyu onayla"
+        message={
+          confirmTarget
+            ? `${new Date(confirmTarget.date).toLocaleString('tr-TR', { dateStyle: 'full', timeStyle: 'short' })} tarihli randevuyu onaylamak istediğinize emin misiniz?`
+            : ''
+        }
+        busy={busyId !== null}
+        onConfirm={handleConfirm}
+        onCancel={() => setConfirmTarget(null)}
+      />
 
       <section className="panel-section">
         <h2 className="section-title">Doktor Profili</h2>
