@@ -33,11 +33,35 @@ function buildSlots(availability: Availability[], bookedSlots: string[]): Slot[]
   return slots.sort((a, b) => a.start.getTime() - b.start.getTime());
 }
 
-function formatSlot(date: Date): { day: string; time: string } {
+function dayKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function formatDayHeader(date: Date): { weekday: string; dayMonth: string } {
   return {
-    day: date.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' }),
-    time: date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+    weekday: date.toLocaleDateString('tr-TR', { weekday: 'long' }),
+    dayMonth: date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' }),
   };
+}
+
+function formatTime(date: Date): string {
+  return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+}
+
+interface DayColumn {
+  key: string;
+  date: Date;
+  slots: Slot[];
+}
+
+function groupByDay(slots: Slot[]): DayColumn[] {
+  const columns = new Map<string, DayColumn>();
+  for (const slot of slots) {
+    const key = dayKey(slot.start);
+    if (!columns.has(key)) columns.set(key, { key, date: slot.start, slots: [] });
+    columns.get(key)!.slots.push(slot);
+  }
+  return Array.from(columns.values()).sort((a, b) => a.date.getTime() - b.date.getTime());
 }
 
 export function DoctorDetailPage() {
@@ -103,6 +127,7 @@ export function DoctorDetailPage() {
   if (!doctor) return <Spinner label="Doktor bilgileri yükleniyor…" />;
 
   const canBook = user?.role === 'patient';
+  const days = groupByDay(slots);
 
   return (
     <div className="page">
@@ -124,36 +149,45 @@ export function DoctorDetailPage() {
       {notice && <div className="form-notice">{notice}</div>}
 
       <h2 className="section-title">Müsait Saatler</h2>
-      {slots.length === 0 ? (
+      {days.length === 0 ? (
         <EmptyState icon="🗓️" text="Bu doktor için yaklaşan müsaitlik bulunmuyor." />
       ) : (
-        <ul className="slot-list">
-          {slots.map((slot) => {
-            const { day, time } = formatSlot(slot.start);
-            const key = slot.start.getTime();
+        <div className="week-calendar">
+          {days.map((column) => {
+            const { weekday, dayMonth } = formatDayHeader(column.date);
             return (
-              <li key={key} className={slot.booked ? 'slot-item slot-booked' : 'slot-item'}>
-                <div>
-                  <strong>{time}</strong>
-                  <span className="slot-day">{day}</span>
+              <div key={column.key} className="week-day">
+                <div className="week-day-header">
+                  <strong>{weekday}</strong>
+                  <span>{dayMonth}</span>
                 </div>
-                {slot.booked ? (
-                  <span className="slot-status">Dolu</span>
-                ) : canBook ? (
-                  <button
-                    className="secondary-button"
-                    disabled={bookingKey === key}
-                    onClick={() => handleBook(slot)}
-                  >
-                    {bookingKey === key ? 'Alınıyor…' : 'Randevu Al'}
-                  </button>
-                ) : (
-                  <span className="slot-status slot-status-free">Müsait</span>
-                )}
-              </li>
+                <div className="week-day-slots">
+                  {column.slots.map((slot) => {
+                    const key = slot.start.getTime();
+                    return (
+                      <div key={key} className={slot.booked ? 'slot-item slot-booked' : 'slot-item'}>
+                        <strong>{formatTime(slot.start)}</strong>
+                        {slot.booked ? (
+                          <span className="slot-status">Dolu</span>
+                        ) : canBook ? (
+                          <button
+                            className="secondary-button"
+                            disabled={bookingKey === key}
+                            onClick={() => handleBook(slot)}
+                          >
+                            {bookingKey === key ? 'Alınıyor…' : 'Randevu Al'}
+                          </button>
+                        ) : (
+                          <span className="slot-status slot-status-free">Müsait</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             );
           })}
-        </ul>
+        </div>
       )}
     </div>
   );

@@ -584,24 +584,56 @@ textarea {
   margin: 0 0 0.4rem;
 }
 
-.slot-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+.week-calendar {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.week-day {
+  flex: 0 0 200px;
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.week-day-header {
+  background: var(--color-primary);
+  color: #fff;
+  padding: 0.6rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.week-day-header span {
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+.week-day-slots {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  padding: 0.75rem;
+}
+
+.week-day-empty {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  margin: 0;
 }
 
 .slot-item {
-  background: var(--color-surface);
+  background: var(--color-bg);
   border-radius: 10px;
-  box-shadow: var(--shadow);
-  padding: 0.75rem 1rem;
+  padding: 0.6rem 0.75rem;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
   transition: box-shadow 0.15s ease;
 }
 
@@ -613,10 +645,8 @@ textarea {
   font-size: 1.05rem;
 }
 
-.slot-day {
-  display: block;
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
+.slot-item button {
+  width: 100%;
 }
 
 .slot-booked {
