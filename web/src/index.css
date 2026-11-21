@@ -487,6 +487,22 @@ textarea {
 
 /* ------------------------------------------------------------ doctors -- */
 
+.doctor-filters {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+
+.doctor-search {
+  flex: 1;
+  min-width: 220px;
+}
+
+.doctor-filters select {
+  min-width: 220px;
+}
+
 .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));

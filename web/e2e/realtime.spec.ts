@@ -27,7 +27,7 @@ test('patient booking an appointment notifies the doctor live, without a reload'
     // needs to reach them.
     await expect(doctorSession.page.locator('.bell-badge')).toHaveCount(0);
 
-    await patientSession.page.getByText(doctor.specialty).click();
+    await patientSession.page.locator('.doctor-card', { hasText: doctor.specialty }).click();
     await patientSession.page.waitForURL('**/doktorlar/*');
 
     const firstSlot = patientSession.page.locator('.slot-item', { hasNotText: 'Dolu' }).first();
