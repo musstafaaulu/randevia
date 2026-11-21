@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { ROLES } from '../types/role';
 
 export const userIdParamSchema = z.object({
-  id: z.string().refine((value) => isValidObjectId(value), 'Invalid user id'),
+  id: z.string().refine((value) => isValidObjectId(value), 'Geçersiz kullanıcı kimliği'),
 });
 
 export const listUsersQuerySchema = z.object({

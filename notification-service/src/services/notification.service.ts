@@ -102,7 +102,7 @@ export async function markNotificationAsRead(
 ): Promise<INotification> {
   const notification = await Notification.findOne({ _id: notificationId, recipientId: userId });
   if (!notification) {
-    throw new ApiError(404, 'Notification not found');
+    throw new ApiError(404, 'Bildirim bulunamadı');
   }
 
   if (!notification.read) {

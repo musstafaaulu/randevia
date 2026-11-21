@@ -11,7 +11,7 @@ export async function createAppointmentHandler(req: Request, res: Response): Pro
     patientId,
     req.body as CreateAppointmentInput,
   );
-  res.status(201).json({ success: true, message: 'Appointment requested', data: { appointment } });
+  res.status(201).json({ success: true, message: 'Randevu talep edildi', data: { appointment } });
 }
 
 export async function listMyAppointmentsHandler(req: Request, res: Response): Promise<void> {
@@ -24,12 +24,12 @@ export async function cancelAppointmentHandler(req: Request, res: Response): Pro
   const userId = req.user!.id;
   const { id } = req.params as unknown as AppointmentIdParam;
   const appointment = await appointmentService.cancelAppointment(userId, id);
-  res.status(200).json({ success: true, message: 'Appointment cancelled', data: { appointment } });
+  res.status(200).json({ success: true, message: 'Randevu iptal edildi', data: { appointment } });
 }
 
 export async function confirmAppointmentHandler(req: Request, res: Response): Promise<void> {
   const userId = req.user!.id;
   const { id } = req.params as unknown as AppointmentIdParam;
   const appointment = await appointmentService.confirmAppointment(userId, id);
-  res.status(200).json({ success: true, message: 'Appointment confirmed', data: { appointment } });
+  res.status(200).json({ success: true, message: 'Randevu onaylandı', data: { appointment } });
 }

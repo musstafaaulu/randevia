@@ -1,3 +1,4 @@
+import './config/zodLocale';
 import cors from 'cors';
 import express, { Application } from 'express';
 import { rateLimit } from 'express-rate-limit';
@@ -33,6 +34,7 @@ app.use(
     limit: 100,
     standardHeaders: true,
     legacyHeaders: false,
+    message: { success: false, message: 'Çok fazla istek gönderdiniz, lütfen biraz sonra tekrar deneyin' },
   }),
 );
 

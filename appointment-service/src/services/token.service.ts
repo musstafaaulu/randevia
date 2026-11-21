@@ -14,11 +14,11 @@ export function verifyAccessToken(token: string): AccessTokenPayload {
   try {
     payload = jwt.verify(token, env.JWT_ACCESS_SECRET) as AccessTokenPayload;
   } catch {
-    throw new ApiError(401, 'Invalid or expired token');
+    throw new ApiError(401, 'Oturumun süresi doldu, lütfen tekrar giriş yapın');
   }
 
   if (payload.type !== 'access') {
-    throw new ApiError(401, 'Invalid token type');
+    throw new ApiError(401, 'Geçersiz oturum bilgisi');
   }
 
   return payload;

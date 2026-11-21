@@ -21,7 +21,7 @@ export async function createAppointment(
 ): Promise<IAppointment> {
   const doctor = await Doctor.findById(input.doctorId);
   if (!doctor) {
-    throw new ApiError(404, 'Doctor not found');
+    throw new ApiError(404, 'Doktor bulunamadı');
   }
 
   const conflict = await Appointment.findOne({
@@ -30,7 +30,7 @@ export async function createAppointment(
     status: { $in: ['pending', 'confirmed'] },
   });
   if (conflict) {
-    throw new ApiError(409, 'Doctor already has an appointment at this date and time');
+    throw new ApiError(409, 'Doktorun bu tarih ve saatte zaten bir randevusu var');
   }
 
   const appointment = await Appointment.create({
@@ -61,23 +61,23 @@ export async function cancelAppointment(
 ): Promise<IAppointment> {
   const appointment = await Appointment.findById(appointmentId);
   if (!appointment) {
-    throw new ApiError(404, 'Appointment not found');
+    throw new ApiError(404, 'Randevu bulunamadı');
   }
 
   if (appointment.patientId.toString() !== userId) {
-    throw new ApiError(403, 'You can only cancel your own appointments');
+    throw new ApiError(403, 'Sadece kendi randevularınızı iptal edebilirsiniz');
   }
 
   if (appointment.status === 'cancelled') {
-    throw new ApiError(400, 'Appointment is already cancelled');
+    throw new ApiError(400, 'Randevu zaten iptal edilmiş');
   }
   if (appointment.status === 'completed') {
-    throw new ApiError(400, 'Completed appointments cannot be cancelled');
+    throw new ApiError(400, 'Tamamlanmış randevular iptal edilemez');
   }
 
   const doctor = await Doctor.findById(appointment.doctorId);
   if (!doctor) {
-    throw new ApiError(404, 'Doctor not found');
+    throw new ApiError(404, 'Doktor bulunamadı');
   }
 
   appointment.status = 'cancelled';
@@ -94,16 +94,16 @@ export async function confirmAppointment(
 ): Promise<IAppointment> {
   const appointment = await Appointment.findById(appointmentId);
   if (!appointment) {
-    throw new ApiError(404, 'Appointment not found');
+    throw new ApiError(404, 'Randevu bulunamadı');
   }
 
   const doctor = await Doctor.findOne({ userId });
   if (!doctor || appointment.doctorId.toString() !== doctor._id.toString()) {
-    throw new ApiError(403, 'You can only confirm your own appointments');
+    throw new ApiError(403, 'Sadece kendi randevularınızı onaylayabilirsiniz');
   }
 
   if (appointment.status !== 'pending') {
-    throw new ApiError(400, 'Only pending appointments can be confirmed');
+    throw new ApiError(400, 'Sadece onay bekleyen randevular onaylanabilir');
   }
 
   appointment.status = 'confirmed';

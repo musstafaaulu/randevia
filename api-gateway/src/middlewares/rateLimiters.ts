@@ -5,7 +5,7 @@ import type { GatewayConfig } from '../config/env';
 function onLimitReached(req: Request, res: Response): void {
   res.status(429).json({
     success: false,
-    message: 'Too many requests, please try again later',
+    message: 'Çok fazla istek gönderdiniz, lütfen biraz sonra tekrar deneyin',
     requestId: req.id,
   });
 }

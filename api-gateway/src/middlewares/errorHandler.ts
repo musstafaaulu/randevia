@@ -5,7 +5,7 @@ import logger from '../utils/logger';
 
 export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction): void {
   const statusCode = err instanceof ApiError ? err.statusCode : 500;
-  const message = err instanceof ApiError ? err.message : 'Internal Server Error';
+  const message = err instanceof ApiError ? err.message : 'Sunucu hatası oluştu';
 
   logger.error(err instanceof Error ? err.message : message, {
     statusCode,

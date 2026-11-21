@@ -1,3 +1,4 @@
+import './config/zodLocale';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express, { Application } from 'express';
@@ -35,6 +36,7 @@ app.use(
     limit: 100,
     standardHeaders: true,
     legacyHeaders: false,
+    message: { success: false, message: 'Çok fazla istek gönderdiniz, lütfen biraz sonra tekrar deneyin' },
   }),
 );
 

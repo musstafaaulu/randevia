@@ -67,7 +67,9 @@ export function createServiceProxy({
         res.end(
           JSON.stringify({
             success: false,
-            message: isTimeout ? `${service} did not respond in time` : `${service} is unavailable`,
+            message: isTimeout
+              ? `${service} zamanında yanıt vermedi`
+              : `${service} şu anda kullanılamıyor`,
             requestId: req.id,
           }),
         );

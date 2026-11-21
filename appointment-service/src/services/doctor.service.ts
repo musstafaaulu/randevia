@@ -16,7 +16,7 @@ export async function getDoctorById(
 ): Promise<{ doctor: IDoctor; availability: IAvailability[]; bookedSlots: Date[] }> {
   const doctor = await Doctor.findById(id);
   if (!doctor) {
-    throw new ApiError(404, 'Doctor not found');
+    throw new ApiError(404, 'Doktor bulunamadı');
   }
 
   const [availability, booked] = await Promise.all([
@@ -60,7 +60,7 @@ export async function addAvailability(
   if (!doctor) {
     throw new ApiError(
       404,
-      'Doctor profile not found. Create your profile before adding availability',
+      'Doktor profili bulunamadı. Müsaitlik eklemeden önce profilinizi oluşturun',
     );
   }
 

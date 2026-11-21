@@ -5,7 +5,7 @@ import { ApiError } from '../utils/ApiError';
 export function authenticate(req: Request, _res: Response, next: NextFunction): void {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) {
-    next(new ApiError(401, 'Authentication required'));
+    next(new ApiError(401, 'Giriş yapmanız gerekiyor'));
     return;
   }
 

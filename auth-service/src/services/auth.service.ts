@@ -11,7 +11,7 @@ export interface AuthResult {
 export async function register(input: RegisterInput): Promise<AuthResult> {
   const existing = await User.findOne({ email: input.email });
   if (existing) {
-    throw new ApiError(409, 'Email is already registered');
+    throw new ApiError(409, 'Bu e-posta adresi zaten kayıtlı');
   }
 
   const user = await User.create(input);
@@ -23,12 +23,12 @@ export async function register(input: RegisterInput): Promise<AuthResult> {
 export async function login(input: LoginInput): Promise<AuthResult> {
   const user = await User.findOne({ email: input.email }).select('+password');
   if (!user) {
-    throw new ApiError(401, 'Invalid email or password');
+    throw new ApiError(401, 'E-posta veya şifre hatalı');
   }
 
   const isMatch = await user.comparePassword(input.password);
   if (!isMatch) {
-    throw new ApiError(401, 'Invalid email or password');
+    throw new ApiError(401, 'E-posta veya şifre hatalı');
   }
 
   const tokens = generateTokenPair(user._id.toString(), user.role);
@@ -41,7 +41,7 @@ export async function refresh(token: string): Promise<AuthResult> {
 
   const user = await User.findById(payload.sub);
   if (!user) {
-    throw new ApiError(401, 'User no longer exists');
+    throw new ApiError(401, 'Kullanıcı artık mevcut değil');
   }
 
   const tokens = generateTokenPair(user._id.toString(), user.role);

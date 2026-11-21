@@ -23,7 +23,7 @@ export async function upsertDoctorProfileHandler(req: Request, res: Response): P
     userId,
     req.body as UpsertDoctorProfileInput,
   );
-  res.status(200).json({ success: true, message: 'Doctor profile saved', data: { doctor } });
+  res.status(200).json({ success: true, message: 'Doktor profili kaydedildi', data: { doctor } });
 }
 
 export async function addAvailabilityHandler(req: Request, res: Response): Promise<void> {
@@ -32,5 +32,5 @@ export async function addAvailabilityHandler(req: Request, res: Response): Promi
     userId,
     req.body as AddAvailabilityInput,
   );
-  res.status(201).json({ success: true, message: 'Availability added', data: { availability } });
+  res.status(201).json({ success: true, message: 'Müsaitlik eklendi', data: { availability } });
 }

@@ -28,12 +28,12 @@ export async function listUsers({ role, page, limit }: ListUsersQuery): Promise<
 export async function updateUserRole(actorId: string, userId: string, role: Role): Promise<IUser> {
   if (actorId === userId) {
     // Guards against an admin locking themselves (and possibly everyone) out.
-    throw new ApiError(400, 'Admins cannot change their own role');
+    throw new ApiError(400, 'Yöneticiler kendi rollerini değiştiremez');
   }
 
   const user = await User.findByIdAndUpdate(userId, { role }, { new: true, runValidators: true });
   if (!user) {
-    throw new ApiError(404, 'User not found');
+    throw new ApiError(404, 'Kullanıcı bulunamadı');
   }
 
   logger.info('User role updated', { actorId, userId, role });

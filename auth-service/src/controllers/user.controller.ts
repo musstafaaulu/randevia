@@ -15,5 +15,5 @@ export async function updateUserRoleHandler(req: Request, res: Response): Promis
   const { id } = req.params as unknown as UserIdParam;
   const { role } = req.body as UpdateUserRoleInput;
   const user = await userService.updateUserRole(req.user!.id, id, role);
-  res.status(200).json({ success: true, message: 'User role updated', data: { user } });
+  res.status(200).json({ success: true, message: 'Kullanıcı rolü güncellendi', data: { user } });
 }

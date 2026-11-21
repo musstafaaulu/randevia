@@ -194,7 +194,7 @@ describe('upstream failures', () => {
     expect(res.status).toBe(502);
     expect(res.body).toEqual({
       success: false,
-      message: 'notification-service is unavailable',
+      message: 'notification-service şu anda kullanılamıyor',
       requestId: res.headers['x-request-id'],
     });
   });
@@ -205,7 +205,7 @@ describe('upstream failures', () => {
     const res = await request(app).get('/api/v1/doctors/slow');
 
     expect(res.status).toBe(504);
-    expect(res.body.message).toBe('appointment-service did not respond in time');
+    expect(res.body.message).toBe('appointment-service zamanında yanıt vermedi');
   });
 });
 

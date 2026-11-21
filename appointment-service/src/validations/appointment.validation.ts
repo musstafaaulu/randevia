@@ -4,7 +4,7 @@ import { zObjectId } from '../utils/objectId';
 export const createAppointmentSchema = z.object({
   doctorId: zObjectId,
   date: z.coerce.date().refine((value) => value.getTime() > Date.now(), {
-    message: 'Appointment date must be in the future',
+    message: 'Randevu tarihi ileride bir zaman olmalı',
   }),
 });
 
