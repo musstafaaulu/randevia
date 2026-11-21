@@ -1,8 +1,8 @@
 # Randevia
 
-**Randevia**, hastaların doktorlardan randevu alabildiği, doktorların randevularını yönetebildiği ve her iki tarafın da randevu hareketlerinden otomatik olarak haberdar edildiği, **mikroservis mimarisiyle** geliştirilmiş bir sağlık randevu sistemidir.
+**Randevia**, hastaların doktorlardan randevu alabildiği, doktorların randevularını yönetebildiği ve her iki tarafın da randevu hareketlerinden **anlık (gerçek zamanlı)** olarak haberdar edildiği, **mikroservis mimarisiyle** geliştirilmiş bir sağlık randevu sistemidir.
 
-Sistem; tek giriş noktası olan bir **API Gateway**, kendi veritabanına sahip üç bağımsız servis ve servisler arası asenkron iletişim için **RabbitMQ** üzerine kurulu olay güdümlü (event-driven) bir yapıdan oluşur. Tamamı tek komutla (`docker compose up`) ayağa kalkar.
+Sistem; tek giriş noktası olan bir **API Gateway**, kendi veritabanına sahip üç bağımsız servis, servisler arası asenkron iletişim için **RabbitMQ** üzerine kurulu olay güdümlü (event-driven) bir yapı, tarayıcıya anlık bildirim ve müsaitlik güncellemesi ileten bir **Socket.io** katmanı ve bunların hepsini kullanan bir **React web arayüzü**nden oluşur. Tamamı tek komutla (`docker compose up`) ayağa kalkar.
 
 > Geliştirici: **Mustafa Ulu**
 
@@ -15,8 +15,11 @@ Sistem; tek giriş noktası olan bir **API Gateway**, kendi veritabanına sahip 
 - [Servisler](#servisler)
 - [Kullanılan Teknolojiler](#kullanılan-teknolojiler)
 - [Kurulum](#kurulum)
+- [Demo Hesapları](#demo-hesapları)
+- [Ekran Görüntüleri](#ekran-görüntüleri)
 - [Yapılandırma](#yapılandırma)
 - [Endpoint Listesi](#endpoint-listesi)
+- [Gerçek Zamanlı Olaylar (Socket.io)](#gerçek-zamanlı-olaylar-socketio)
 - [Örnek Akış](#örnek-akış)
 - [Testler ve Sonuçlar](#testler-ve-sonuçlar)
 - [Tasarım Kararları](#tasarım-kararları)
@@ -27,14 +30,16 @@ Sistem; tek giriş noktası olan bir **API Gateway**, kendi veritabanına sahip 
 
 ## Öne Çıkanlar
 
-- **Tek giriş noktası:** Tüm istemci trafiği API Gateway üzerinden geçer; servisler ve veritabanları dış dünyaya kapalıdır.
+- **Tek giriş noktası:** Tüm istemci trafiği (REST **ve** WebSocket) API Gateway üzerinden geçer; servisler ve veritabanları dış dünyaya kapalıdır.
 - **Database-per-service:** Her servis yalnızca kendi MongoDB örneğine erişir.
 - **Olay güdümlü iletişim:** Randevu olayları RabbitMQ topic exchange'i üzerinden yayınlanır, bildirim servisi bunları asenkron olarak tüketir.
+- **Gerçek zamanlı katman:** JWT ile doğrulanmış bir Socket.io sunucusu; her kullanıcı kendi `user:<id>` odasında anlık bildirim alır, bir doktorun sayfasını izleyen herkes `doctor:<doctorId>` odasında müsaitlik değişikliğini (`slot.updated`) anında görür. Birden fazla notification-service örneği arasında olayları paylaşmak için Redis adapter kullanılır.
 - **Dayanıklı mesajlaşma:** Gecikmeli yeniden deneme (retry) kuyruğu, dead-letter queue (DLQ) ve idempotent işleme sayesinde mesajlar ne kaybolur ne de iki kez işlenir.
 - **Rol tabanlı yetkilendirme:** `patient`, `doctor`, `admin` rolleri; doktor rolü yalnızca admin tarafından atanabilir.
 - **Güvenlik:** JWT (access + refresh token), httpOnly refresh cookie, bcrypt ile parola özeti, helmet, CORS, rate limiting.
 - **Gözlemlenebilirlik:** Her isteğe atanan `X-Request-Id` gateway'den servislere taşınır ve tüm loglarda yer alır; yapılandırılmış JSON loglar.
-- **Kalite:** TypeScript strict mode, Zod ile girdi ve ortam değişkeni doğrulaması, ESLint + Prettier, 153 birim/entegrasyon testi ve 34 adımlık uçtan uca test.
+- **Web arayüzü:** React + TypeScript SPA; Türkçe, mobil uyumlu, yalnızca gateway ile konuşur. Canlı bildirim zili, toast mesajları ve anlık güncellenen doktor müsaitliği içerir.
+- **Kalite:** TypeScript strict mode, Zod ile girdi ve ortam değişkeni doğrulaması, ESLint + Prettier, 167 backend birim/entegrasyon testi, 34 adımlık REST uçtan uca test ve Socket.io üzerinden iki tarayıcıyla çalışan bir Playwright uçtan uca testi.
 
 ---
 
@@ -42,22 +47,23 @@ Sistem; tek giriş noktası olan bir **API Gateway**, kendi veritabanına sahip 
 
 ```mermaid
 flowchart LR
-    client([İstemci<br/>Web / Mobil])
+    browser([Tarayıcı<br/>React web arayüzü])
 
     subgraph edge[" "]
-        gateway["<b>API Gateway</b><br/>:3000<br/>helmet · CORS · rate limit<br/>request id · proxy"]
+        gateway["<b>API Gateway</b><br/>:3000<br/>helmet · CORS · rate limit<br/>request id · HTTP + WS proxy"]
     end
 
     subgraph services["Servisler (yalnızca iç ağ)"]
         auth["<b>auth-service</b><br/>:4000<br/>kayıt · giriş · JWT · roller"]
         appt["<b>appointment-service</b><br/>:4001<br/>doktorlar · müsaitlik · randevular"]
-        notif["<b>notification-service</b><br/>:4002<br/>bildirimler"]
+        notif["<b>notification-service</b><br/>:4002<br/>bildirimler · Socket.io"]
     end
 
     subgraph data["Veri katmanı"]
         mauth[(MongoDB<br/>randevia_auth)]
         mappt[(MongoDB<br/>randevia_appointment)]
         mnotif[(MongoDB<br/>randevia_notification)]
+        redis[(Redis<br/>Socket.io adapter)]
     end
 
     subgraph broker["RabbitMQ"]
@@ -67,14 +73,17 @@ flowchart LR
         dlq[["dead-letter<br/>kuyruğu"]]
     end
 
-    client -->|HTTPS / JSON| gateway
+    browser -->|HTTPS / JSON| gateway
+    browser <-->|"WebSocket<br/>/socket.io"| gateway
     gateway -->|/api/v1/auth| auth
     gateway -->|/api/v1/doctors<br/>/api/v1/appointments| appt
     gateway -->|/api/v1/notifications| notif
+    gateway <-.->|"WS upgrade"| notif
 
     auth --> mauth
     appt --> mappt
     notif --> mnotif
+    notif <-.-> redis
 
     appt -- "appointment.created<br/>appointment.confirmed<br/>appointment.cancelled" --> exchange
     exchange -->|appointment.*| queue
@@ -82,6 +91,7 @@ flowchart LR
     notif -. "geçici hata" .-> retry
     retry -. "süre dolunca" .-> queue
     notif -. "bozuk mesaj /<br/>deneme hakkı bitti" .-> dlq
+    notif -. "notification / slot.updated<br/>(anlık)" .-> browser
 ```
 
 **JWT doğrulaması:** Token'ları yalnızca `auth-service` üretir. Diğer servisler aynı `JWT_ACCESS_SECRET` ile token'ı kendileri doğrular; her istekte auth-service'e senkron çağrı yapılmaz. Böylece auth-service geçici olarak erişilemez olsa bile geçerli token'a sahip kullanıcılar randevu ve bildirim işlemlerine devam edebilir.
@@ -91,7 +101,8 @@ flowchart LR
 ```mermaid
 sequenceDiagram
     autonumber
-    participant P as Hasta
+    participant P as Hasta (tarayıcı)
+    participant D as Doktor (tarayıcı, socket bağlı)
     participant G as API Gateway
     participant A as appointment-service
     participant R as RabbitMQ
@@ -106,6 +117,10 @@ sequenceDiagram
     R--)N: deliver
     N->>N: (eventId, recipientRole) ile upsert → hasta + doktor bildirimi
     N--)R: ack
+    N--)G: Socket.io: "notification" → user:<doktorId> odası
+    N--)G: Socket.io: "slot.updated" → doctor:<doktorId> odasını izleyen herkes
+    G--)D: WebSocket üzerinden anlık iletim (sayfa yenilemeden)
+    D->>D: Bildirim zili + toast güncellenir, müsaitlik yeniden çekilir
 ```
 
 ---
@@ -114,11 +129,13 @@ sequenceDiagram
 
 | Servis | Port | Sorumluluk | Veritabanı |
 |---|---|---|---|
-| **api-gateway** | 3000 (dışa açık) | Tek giriş noktası; yönlendirme, helmet, CORS, rate limit, request id, upstream hata yönetimi (502/504), sistem sağlık kontrolü | — |
+| **api-gateway** | 3000 (dışa açık) | Tek giriş noktası; yönlendirme (HTTP + WebSocket), helmet, CORS, rate limit, request id, upstream hata yönetimi (502/504), sistem sağlık kontrolü | — |
 | **auth-service** | 4000 | Kayıt, giriş, token yenileme, profil, admin kullanıcı ve rol yönetimi, ilk admin'in otomatik oluşturulması | `mongo-auth` |
-| **appointment-service** | 4001 | Doktor profilleri, müsaitlik takvimi, randevu oluşturma / onaylama / iptal; randevu olaylarını yayınlama | `mongo-appointment` |
-| **notification-service** | 4002 | Randevu olaylarını tüketme, hasta ve doktor için bildirim üretme ve gönderme (simüle e-posta), kullanıcının bildirimlerini listeleme | `mongo-notification` |
+| **appointment-service** | 4001 | Doktor profilleri, müsaitlik takvimi, randevu oluşturma / onaylama / iptal; randevu olaylarını yayınlama; dolu saatleri (`bookedSlots`) raporlama | `mongo-appointment` |
+| **notification-service** | 4002 | Randevu olaylarını tüketme, hasta ve doktor için bildirim üretme ve gönderme (simüle e-posta), bildirim listeleme/okundu işaretleme, **Socket.io sunucusu** ile anlık bildirim ve müsaitlik yayını | `mongo-notification` |
+| **web** | 8080 (dışa açık) | React + Vite tabanlı web arayüzü; nginx ile statik olarak sunulur, yalnızca gateway ile konuşur | — |
 | **rabbitmq** | 5672 / 15672 | Mesaj aracısı; `randevia.events` topic exchange, retry ve dead-letter kuyrukları | — |
+| **redis** | (yalnızca iç ağ) | Socket.io Redis adapter; notification-service birden fazla örnekle çalışırken olayları örnekler arasında paylaştırır | — |
 
 Her servis aynı iskeleti paylaşır: ortam değişkeni doğrulama (Zod), winston logger, merkezi hata yönetimi, `/api/v1/health` endpoint'i, graceful shutdown ve Jest testleri.
 
@@ -132,12 +149,14 @@ Her servis aynı iskeleti paylaşır: ortam değişkeni doğrulama (Zod), winsto
 | Web framework | Express 5 |
 | Veritabanı | MongoDB 7, Mongoose 9 |
 | Mesajlaşma | RabbitMQ 3 (management), amqplib |
-| API Gateway | http-proxy-middleware, helmet, cors, express-rate-limit |
+| Gerçek zamanlı | Socket.io 4 (JWT auth middleware, oda bazlı yayın), `@socket.io/redis-adapter`, Redis 7 |
+| API Gateway | http-proxy-middleware (HTTP + WebSocket proxy), helmet, cors, express-rate-limit |
 | Kimlik doğrulama | JSON Web Token (jsonwebtoken), bcryptjs, cookie-parser |
 | Doğrulama | Zod 4 (istek gövdesi, parametreler, query ve ortam değişkenleri) |
 | Loglama | winston (JSON), morgan |
-| Test | Jest 30, ts-jest, Supertest |
-| Kod kalitesi | ESLint 10 (typescript-eslint), Prettier |
+| Web arayüzü | React 19, TypeScript, Vite, React Router, socket.io-client, nginx (üretim imajı) |
+| Test | Jest 30, ts-jest, Supertest, socket.io-client (entegrasyon), Playwright (uçtan uca) |
+| Kod kalitesi | ESLint 10 (typescript-eslint), Prettier, oxlint (web) |
 | Altyapı | Docker (multi-stage build), Docker Compose |
 
 ---
@@ -175,12 +194,25 @@ curl http://localhost:3000/api/v1/health/services   # tüm servislerin durumu
 
 | Adres | Açıklama |
 |---|---|
-| http://localhost:3000 | API Gateway (tüm API istekleri) |
+| http://localhost:8080 | **Web arayüzü** |
+| http://localhost:3000 | API Gateway (tüm API istekleri, Socket.io dahil) |
 | http://localhost:15672 | RabbitMQ yönetim paneli (`guest` / `guest`) |
 
 Admin hesabı: `ADMIN_EMAIL` (varsayılan `admin@randevia.local`) ve `.env`'de belirlediğin `ADMIN_PASSWORD`. Şifre her açılışta `.env`'den yeniden uygulanır; değiştirip `docker compose up -d` çalıştırmak şifreyi yeniler.
 
+> **Not:** `CORS_ORIGIN` varsayılan olarak `http://localhost:8080,http://localhost:5173` içerir (web arayüzünün üretim ve geliştirme adresleri). Giriş çerezinin ve Socket.io bağlantısının çalışması için tarayıcıdan açılan adresin bu listede olması gerekir; farklı bir adres/port kullanıyorsan `.env`'de güncelle.
+
 Sistemi durdurmak için `docker compose down`, verileri de silmek için `docker compose down -v`.
+
+### Örnek veriyle doldurma (isteğe bağlı)
+
+Sistem ayaktayken, web arayüzünü boş görmemek için bir hasta, birkaç doktor profili ve yaklaşan müsaitlik ekler (tekrar çalıştırmak güvenlidir):
+
+```bash
+node scripts/seed-demo.mjs
+```
+
+Oluşturduğu hesaplar için bkz. [Demo Hesapları](#demo-hesapları).
 
 ### Uçtan uca testi çalıştırma
 
@@ -189,6 +221,8 @@ Sistem ayaktayken (admin bilgileri kök `.env` dosyasından okunur):
 ```bash
 node scripts/e2e.mjs
 ```
+
+Web arayüzünün gerçek zamanlı akışını iki tarayıcıyla (hasta + doktor) doğrulayan Playwright testi için [`web/e2e/README.md`](web/e2e/README.md) dosyasına bakın.
 
 ### Yerel geliştirme (Docker olmadan servis çalıştırma)
 
@@ -214,6 +248,33 @@ Diğer servisler için de aynı adımlar geçerlidir (`appointment-service`, `no
 
 ---
 
+## Demo Hesapları
+
+`node scripts/seed-demo.mjs` çalıştırıldığında aşağıdaki hesaplar oluşturulur (veya zaten varsa yeniden kullanılır):
+
+| Rol | E-posta | Şifre |
+|---|---|---|
+| Hasta | `hasta@randevia.local` | `Demo12345!` |
+| Doktor (Kardiyoloji) | `doktor@randevia.local` | `Demo12345!` |
+| Admin | `.env` içindeki `ADMIN_EMAIL` (varsayılan `admin@randevia.local`) | `.env` içindeki `ADMIN_PASSWORD` |
+
+Script ayrıca listeyi gerçekçi göstermek için farklı uzmanlıklarda birkaç doktor profili daha ekler (bunların giriş bilgileri belgelenmez, yalnızca içerik amaçlıdır).
+
+---
+
+## Ekran Görüntüleri
+
+Aşağıdaki görüntüler, `docker compose up` ile ayağa kalkan ve `seed-demo.mjs` ile doldurulan gerçek sistemden, Playwright ile otomatik olarak alınmıştır.
+
+| | |
+|---|---|
+| ![Giriş](docs/screenshots/01-giris.png) Giriş sayfası | ![Doktorlar](docs/screenshots/02-doktorlar.png) Doktor listesi |
+| ![Doktor detayı](docs/screenshots/03-doktor-detay.png) Doktor detayı – canlı müsaitlik | ![Randevularım](docs/screenshots/04-randevularim.png) Randevularım |
+| ![Doktor paneli](docs/screenshots/05-doktor-paneli.png) Doktor paneli | ![Admin paneli](docs/screenshots/06-admin-paneli.png) Admin paneli |
+| ![Canlı bildirim](docs/screenshots/07-canli-bildirim-toast.png) Hasta randevu alır almaz, doktorun ekranında **sayfa yenilenmeden** beliren bildirim zili ve toast | ![Mobil görünüm](docs/screenshots/08-mobil-doktorlar.png) Mobil uyumlu görünüm |
+
+---
+
 ## Yapılandırma
 
 Kök dizindeki [`.env.example`](.env.example) docker compose için değiştirilebilir ayarları listeler. Her servisin kendi klasöründeki `.env.example` dosyası tüm ortam değişkenlerini açıklamalarıyla birlikte içerir. Başlıcaları:
@@ -223,10 +284,12 @@ Kök dizindeki [`.env.example`](.env.example) docker compose için değiştirile
 | `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | — (zorunlu) | Token imzalama anahtarları (tüm servislerde aynı access secret); production'da en az 32 karakter |
 | `JWT_ACCESS_EXPIRES_IN` / `JWT_REFRESH_EXPIRES_IN` | `15m` / `7d` | Token ömürleri |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `admin@randevia.local` / — (zorunlu) | Açılışta oluşturulan admin; şifre her açılışta yeniden uygulanır |
-| `CORS_ORIGIN` | `*` | `*` veya virgülle ayrılmış origin listesi (cookie yalnızca listeyle) |
+| `CORS_ORIGIN` | `http://localhost:8080,http://localhost:5173` | Cookie ve Socket.io credentials gerektirdiği için `*` yerine web arayüzünün tam adresi/adresleri (virgülle ayrılmış) |
 | `RATE_LIMIT_MAX` / `AUTH_RATE_LIMIT_MAX` | `300` / `20` | 15 dakikada IP başına genel / giriş-kayıt-yenileme limiti |
 | `PROXY_TIMEOUT_MS` | `10000` | Gateway'in servis yanıtını bekleme süresi (aşılırsa 504) |
 | `MESSAGE_MAX_RETRIES` / `MESSAGE_RETRY_DELAY_MS` | `3` / `5000` | Bildirim işleme yeniden deneme sayısı ve aralığı |
+| `REDIS_URL` | `redis://localhost:6379` (compose'da `redis://redis:6379`) | Socket.io Redis adapter; erişilemezse notification-service tek örnek modunda çalışmaya devam eder |
+| `WEB_PORT` / `WEB_API_BASE_URL` | `8080` / `http://localhost:3000` | Web arayüzünün dışa açık portu ve derleme anında gömülen gateway adresi |
 | `TRUST_PROXY` | `0` (compose'da `1`) | Önündeki proxy sayısı; gerçek istemci IP'si için |
 | `LOG_LEVEL` | `info` | `http` seviyesinde istek logları (request id ile) görünür |
 
@@ -259,7 +322,7 @@ Tüm istekler gateway üzerinden yapılır: `http://localhost:3000`. 🔒 işare
 | Metot | Yol | Yetki | Açıklama |
 |---|---|---|---|
 | GET | `/api/v1/doctors` | 🔒 herkes | Doktorları listeler |
-| GET | `/api/v1/doctors/:id` | 🔒 herkes | Doktor detayı ve müsaitlik aralıkları |
+| GET | `/api/v1/doctors/:id` | 🔒 herkes | Doktor detayı, müsaitlik aralıkları ve dolu saatler (`bookedSlots`) |
 | POST | `/api/v1/doctors/me` | 🔒 doctor | Kendi doktor profilini oluşturur / günceller (uzmanlık, biyografi) |
 | POST | `/api/v1/doctors/me/availability` | 🔒 doctor | Müsaitlik aralığı ekler |
 
@@ -276,11 +339,30 @@ Tüm istekler gateway üzerinden yapılır: `http://localhost:3000`. 🔒 işare
 
 | Metot | Yol | Yetki | Açıklama |
 |---|---|---|---|
-| GET | `/api/v1/notifications/me?page=&limit=` | 🔒 herkes | Kullanıcının bildirimleri, en yeniden eskiye, sayfalı |
+| GET | `/api/v1/notifications/me?page=&limit=` | 🔒 herkes | Kullanıcının bildirimleri, en yeniden eskiye, sayfalı, okunmamış sayısıyla (`unreadCount`) birlikte |
+| PATCH | `/api/v1/notifications/:id/read` | 🔒 herkes | Tek bir bildirimi okundu işaretler (yalnızca kendi bildirimi) |
+| PATCH | `/api/v1/notifications/read-all` | 🔒 herkes | Kullanıcının tüm okunmamış bildirimlerini okundu işaretler |
 
 ### Yanıt formatı
 
 Başarılı yanıtlar `{ "success": true, "data": { ... } }`, hatalar `{ "success": false, "message": "...", "details": { ... } }` biçimindedir. Gateway kaynaklı hatalar (`404`, `429`, `502`, `504`) ayrıca `requestId` alanını içerir. Her yanıtta `X-Request-Id` başlığı bulunur.
+
+---
+
+## Gerçek Zamanlı Olaylar (Socket.io)
+
+Gateway, `/socket.io` yolundaki WebSocket trafiğini notification-service'e yönlendirir; istemci tarafı adresi gateway'dir (`http://localhost:3000`), notification-service'in kendisi değil.
+
+**Bağlantı:** `io(GATEWAY_URL, { path: '/socket.io', auth: { token: accessToken } })`. Token geçersiz veya eksikse bağlantı `connect_error` ile reddedilir. Bağlanan her soket otomatik olarak kendi `user:<kullanıcıId>` odasına katılır.
+
+| Olay | Yön | Açıklama |
+|---|---|---|
+| `doctor:watch` (`doctorId`) | istemci → sunucu | O doktorun sayfasını izlemeye başlar (`doctor:<doctorId>` odasına katılır) |
+| `doctor:unwatch` (`doctorId`) | istemci → sunucu | İzlemeyi bırakır |
+| `notification` (`{ notification, unreadCount }`) | sunucu → istemci | İlgili kullanıcının `user:<id>` odasına; randevu oluştuğunda/onaylandığında/iptal edildiğinde hem hastaya hem doktora gönderilir |
+| `slot.updated` (`{ doctorId, appointmentId, date, status, eventType }`) | sunucu → istemci | O doktoru izleyen **herkese** (hasta veya doktor fark etmeksizin); web arayüzü bunu alınca doktor detayını yeniden çeker |
+
+Birden fazla notification-service örneği çalıştığında (`docker compose up --scale notification-service=2` gibi), örnekler arasında olayları paylaştırmak için Redis adapter kullanılır; Redis'e erişilemezse servis yine de tek örnek modunda çalışmaya devam eder.
 
 ---
 
@@ -323,12 +405,14 @@ Her servis, gerçek MongoDB ve RabbitMQ'ya karşı çalışan entegrasyon testle
 | Servis | Test sayısı | Kapsanan başlıca senaryolar |
 |---|---:|---|
 | auth-service | **41** ✅ | Kayıt, giriş, refresh (cookie ve gövde), `/me`, doktor rolüyle kendi kendine kayıt reddi, admin rol atama ve listeleme, yetkisiz erişim (401/403), admin'in kendi rolünü değiştirememesi, admin bootstrap ve şifre rotasyonu, production'da zayıf secret reddi, validate middleware (Express 5 `req.query`) |
-| appointment-service | **47** ✅ | Doktor profili ve müsaitlik, randevu oluşturma, çakışma (409), onay/iptal kuralları, rol kısıtları, olay yayınlama, RabbitMQ kapalıyken iş akışının sürmesi, yeniden bağlanma, ortam değişkeni doğrulaması, validate middleware |
-| notification-service | **38** ✅ | Olaydan bildirim üretimi, şablonlar, ack/nack kararları, gecikmeli retry, deneme hakkı bitince DLQ, bozuk mesajın DLQ'ya gitmesi, idempotency, sayfalama, ortam değişkeni doğrulaması |
-| api-gateway | **27** ✅ | Yönlendirme ve yol koruma, gövde/başlık/cookie aktarımı, request id üretme/taşıma/temizleme, helmet, CORS (liste, `*`, preflight, upstream başlıklarının ezilmesi), genel ve giriş limitleri (429), 502/504, sağlık kontrolleri |
-| **Toplam** | **153** ✅ | |
+| appointment-service | **48** ✅ | Doktor profili ve müsaitlik, randevu oluşturma, çakışma (409), onay/iptal kuralları, rol kısıtları, olay yayınlama, dolu saatlerin (`bookedSlots`) yalnızca pending/confirmed randevulardan gelmesi, RabbitMQ kapalıyken iş akışının sürmesi, yeniden bağlanma, ortam değişkeni doğrulaması, validate middleware |
+| notification-service | **50** ✅ | Olaydan bildirim üretimi, şablonlar, ack/nack kararları, gecikmeli retry, deneme hakkı bitince DLQ, bozuk mesajın DLQ'ya gitmesi, idempotency, sayfalama, okundu işaretleme (tekil/toplu, başkasının bildirimini okuyamama), **Socket.io**: yetkisiz/geçersiz token reddi, doğru kullanıcıya doğru `notification` olayı ve unread count, başkasına sızmaması, `doctor:watch` ile `slot.updated` yayını, ortam değişkeni doğrulaması |
+| api-gateway | **28** ✅ | Yönlendirme ve yol koruma, gövde/başlık/cookie aktarımı, request id üretme/taşıma/temizleme, helmet, CORS (liste, `*`, preflight, upstream başlıklarının ezilmesi), genel ve giriş limitleri (429), 502/504, sağlık kontrolleri, **gerçek bir Socket.io el sıkışmasının ve mesajının websocket upgrade üzerinden notification-service'e iletilmesi** |
+| **Toplam** | **167** ✅ | |
 
 **Uçtan uca test** (`scripts/e2e.mjs`, `docker compose up` ile ayağa kalkan gerçek sisteme karşı, yalnızca gateway üzerinden): **34/34 kontrol başarılı** ✅ — sağlık, request id, güvenlik başlıkları, rate limit başlıkları, kayıt, rol atama, doktor profili ve müsaitlik, randevu alma, çift rezervasyon engeli, onay, iptal, RabbitMQ üzerinden hasta ve doktora iletilen bildirimler, sayfalama ve kuyruk topolojisi.
+
+**Web arayüzü uçtan uca testi** ([`web/e2e/realtime.spec.ts`](web/e2e/realtime.spec.ts), Playwright, gerçek `docker compose` sistemine karşı): iki ayrı tarayıcı bağlamı açar (hasta ve doktor), hasta gerçek arayüz üzerinden bir doktora randevu alır ve doktorun ekranında **sayfa hiç yenilenmeden** bildirim zilinin, okunmamış sayısının ve toast mesajının anlık olarak belirdiğini doğrular — bkz. [`web/e2e/README.md`](web/e2e/README.md).
 
 Canlı sistem üzerinde ayrıca elle doğrulanan senaryolar:
 
@@ -396,6 +480,20 @@ RabbitMQ **en az bir kez** (at-least-once) teslim garantisi verir: bağlantı ko
 
 Herkes yalnızca **hasta** olarak kayıt olabilir; `role: "doctor"` ile kayıt isteği `400` ile reddedilir. Doktor (ve admin) rolü yalnızca admin tarafından `PATCH /api/v1/auth/users/:id/role` ile atanır. İlk admin, açılışta `ADMIN_EMAIL` / `ADMIN_PASSWORD` değişkenlerinden oluşturulur. Admin'in kendi rolünü değiştirmesi engellenmiştir (sistemin admin'siz kalmaması için). Yeni rol, kullanıcının bir sonraki access token'ında geçerli olur (en geç `JWT_ACCESS_EXPIRES_IN` sonra, `/refresh` ile hemen).
 
+### Gerçek zamanlı katman (Socket.io + Redis)
+
+Socket.io sunucusu notification-service içinde, REST API ile aynı HTTP sunucusu üzerinde çalışır; gateway, `/socket.io` yolundaki hem normal hem websocket-upgrade isteklerini oraya proxy'ler, böylece istemci tek bir adres (gateway) bilir. Bağlantı anında `io.use` middleware'i JWT'yi `verifyAccessToken` ile doğrular (REST istekleriyle aynı fonksiyon); geçersiz veya eksik token `connect_error` ile reddedilir. Her soket kendi `user:<id>` odasına katılır; bir doktorun sayfasını izleyen herkes (rolünden bağımsız) isteğe bağlı olarak `doctor:<doctorId>` odasına katılabilir.
+
+Bildirim üretimiyle gerçek zamanlı yayın aynı yerde (`processAppointmentEvent`) tetiklenir: RabbitMQ'dan tüketilen her olay, veritabanına yazıldıktan hemen sonra ilgili kullanıcılara `notification` ve doktoru izleyenlere `slot.updated` olarak yayınlanır — yani WebSocket yayını da RabbitMQ'nun dayanıklılığından (retry/DLQ) faydalanır; olay kaybolmaz, yalnızca anlık bildirim "en iyi çaba" ile iletilir (socket bağlı değilse kullanıcı bir sonraki `GET /notifications/me` çağrısında aynı veriyi zaten görür).
+
+Redis adapter bağlantısı **en iyi çaba** (best-effort) ile kurulur ve beklenmez: Redis açılışta erişilemezse servis yine de tek örnek modunda normal çalışır, tıpkı RabbitMQ bağlantısının ele alınma şekli gibi. Bu, sistemin tek bir notification-service örneğiyle Redis olmadan da çalışabilmesini sağlarken, birden fazla örnek çalıştırıldığında (yatay ölçekleme) olayların tüm örnekler arasında paylaşılmasına da imkân tanır.
+
+### Web arayüzü
+
+React SPA, sunucu adreslerini bilmez; yalnızca gateway'in adresiyle konuşur (REST ve Socket.io için aynı adres). Erişim token'ı yalnızca bellekte tutulur (XSS'e karşı `localStorage` kullanılmaz); sayfa yenilendiğinde `httpOnly` refresh çerezi ile sessizce yeni bir access token alınır. Bu nedenle `CORS_ORIGIN`'in gateway'de tam olarak web arayüzünün adresine ayarlanması gerekir (`*` ile credentials'lı istekler tarayıcı tarafından reddedilir).
+
+Doktor detay sayfasındaki "müsait saatler" listesi, müsaitlik aralıklarından (30 dakikalık adımlarla) istemci tarafında üretilir ve `bookedSlots` ile karşılaştırılır; `slot.updated` olayı geldiğinde sayfa tamamen yeniden çekilir (ince taneli, kısmi state güncellemesi yerine) — daha az kod ile her zaman doğru sonucu garanti eder.
+
 ### Diğer kararlar
 
 - **Graceful shutdown:** `SIGTERM` alındığında HTTP sunucusu yeni istek almayı bırakır, bildirim servisi önce tüketiciyi iptal edip işlenmekte olan mesajları bitirir, ardından RabbitMQ ve MongoDB bağlantıları kapatılır. Docker imajlarında `node` doğrudan ana süreçtir, böylece sinyal kaybolmaz.
@@ -409,17 +507,20 @@ Herkes yalnızca **hasta** olarak kayıt olabilir; `role: "doctor"` ile kayıt i
 
 ```
 randevia/
-├── api-gateway/            # Tek giriş noktası (port 3000)
+├── api-gateway/            # Tek giriş noktası (port 3000), HTTP + WS proxy
 ├── auth-service/           # Kimlik doğrulama ve roller (port 4000)
 ├── appointment-service/    # Doktorlar ve randevular (port 4001)
-├── notification-service/   # Bildirimler (port 4002)
+├── notification-service/   # Bildirimler + Socket.io sunucusu (port 4002)
+├── web/                    # React + Vite web arayüzü (port 8080, nginx)
+├── docs/screenshots/       # README'deki ekran görüntüleri
 ├── scripts/
-│   └── e2e.mjs             # Uçtan uca test
-├── docker-compose.yml      # Tüm sistem: 4 servis + 3 MongoDB + RabbitMQ
+│   ├── e2e.mjs             # Uçtan uca REST testi
+│   └── seed-demo.mjs       # Demo hesapları ve örnek veri
+├── docker-compose.yml      # Tüm sistem: 5 servis + 3 MongoDB + RabbitMQ + Redis
 └── .env.example            # docker compose ayarları
 ```
 
-Her servis aynı katmanlı yapıyı izler:
+auth-service, appointment-service, notification-service ve api-gateway aynı katmanlı yapıyı izler:
 
 ```
 <servis>/
@@ -433,11 +534,29 @@ Her servis aynı katmanlı yapıyı izler:
 │   ├── validations/    # Zod istek şemaları
 │   ├── messaging/      # RabbitMQ bağlantısı, publisher / consumer
 │   ├── events/         # olay sözleşmeleri
+│   ├── realtime/       # (yalnızca notification-service) Socket.io sunucusu
 │   ├── app.ts          # Express uygulaması
 │   └── server.ts       # açılış ve graceful shutdown
 ├── tests/              # unit/ ve integration/
 ├── Dockerfile
 └── package.json
+```
+
+`web/` React SPA olarak ayrı bir yapı izler:
+
+```
+web/
+├── src/
+│   ├── api/            # gateway'e REST çağrıları (fetch istemcisi dahil)
+│   ├── auth/            # AuthContext: oturum, token yenileme
+│   ├── socket/           # SocketContext: Socket.io bağlantısı
+│   ├── context/          # NotificationContext: zil, toast, okundu işaretleme
+│   ├── components/       # Layout, bildirim zili, korumalı route'lar
+│   ├── pages/            # giriş/kayıt, doktorlar, randevularım, paneller
+│   └── types/            # paylaşılan API tipleri
+├── e2e/                  # Playwright uçtan uca testi
+├── Dockerfile            # çok aşamalı derleme + nginx
+└── nginx.conf
 ```
 
 ---
@@ -447,9 +566,11 @@ Her servis aynı katmanlı yapıyı izler:
 - **Outbox pattern:** Olayın randevu kaydıyla aynı veritabanı işleminde bir outbox koleksiyonuna yazılıp ayrı bir süreçle yayınlanması; RabbitMQ kapalıyken bile olay kaybını tamamen önler.
 - Gerçek e-posta / SMS sağlayıcı entegrasyonu (şu an gönderim simüle edilip loglanıyor).
 - Refresh token rotasyonu ve iptali (logout, token blacklist).
-- Dağıtık rate limiting için gateway'de Redis store.
+- Dağıtık rate limiting için gateway'de Redis store (şu an yalnızca Socket.io adapter'ı Redis kullanıyor).
 - OpenAPI / Swagger dokümantasyonu.
 - CI pipeline (GitHub Actions) ile lint, test ve imaj build.
+- Web arayüzü için bileşen/birim testleri (şu an yalnızca uçtan uca Playwright testi var).
+- Doktor panelinde müsaitlik silme/düzenleme ve randevu geçmişinde sayfalama.
 
 ---
 
