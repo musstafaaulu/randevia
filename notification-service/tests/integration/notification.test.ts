@@ -105,7 +105,7 @@ describe('GET /api/v1/notifications/me', () => {
       .set('Authorization', `Bearer ${generateAccessToken(patientId, 'patient')}`);
 
     expect(res.status).toBe(200);
-    const { notifications, pagination } = res.body.data;
+    const { notifications, pagination, unreadCount } = res.body.data;
     expect(notifications).toHaveLength(2);
     expect(notifications.map((n: { type: string }) => n.type)).toEqual([
       'appointment.confirmed',
@@ -114,7 +114,9 @@ describe('GET /api/v1/notifications/me', () => {
     expect(notifications.every((n: { recipientId: string }) => n.recipientId === patientId)).toBe(
       true,
     );
+    expect(notifications.every((n: { read: boolean }) => n.read === false)).toBe(true);
     expect(pagination).toEqual({ page: 1, limit: 20, total: 2, totalPages: 1 });
+    expect(unreadCount).toBe(2);
   });
 
   it('shows the doctor their notifications by user id', async () => {
@@ -154,5 +156,60 @@ describe('GET /api/v1/notifications/me', () => {
       .set('Authorization', `Bearer ${generateAccessToken(newUserId(), 'patient')}`);
 
     expect(res.status).toBe(400);
+  });
+});
+
+describe('PATCH /api/v1/notifications/:id/read', () => {
+  it('marks one of the caller own notifications as read', async () => {
+    const patientId = newUserId();
+    await processAppointmentEvent(makeEvent({ patientId }));
+    const token = generateAccessToken(patientId, 'patient');
+    const [notification] = await Notification.find({ recipientId: patientId });
+
+    const res = await request(app)
+      .patch(`/api/v1/notifications/${notification!._id.toString()}/read`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.notification.read).toBe(true);
+    expect(await Notification.findById(notification!._id)).toMatchObject({ read: true });
+  });
+
+  it('refuses to mark someone else notification as read', async () => {
+    await processAppointmentEvent(makeEvent());
+    const [notification] = await Notification.find({});
+
+    const res = await request(app)
+      .patch(`/api/v1/notifications/${notification!._id.toString()}/read`)
+      .set('Authorization', `Bearer ${generateAccessToken(newUserId(), 'patient')}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 400 for a malformed id', async () => {
+    const res = await request(app)
+      .patch('/api/v1/notifications/not-an-id/read')
+      .set('Authorization', `Bearer ${generateAccessToken(newUserId(), 'patient')}`);
+
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('PATCH /api/v1/notifications/read-all', () => {
+  it('marks every unread notification of the caller as read and leaves others untouched', async () => {
+    const patientId = newUserId();
+    await processAppointmentEvent(makeEvent({ patientId }));
+    await processAppointmentEvent(makeEvent({ patientId }));
+    await processAppointmentEvent(makeEvent());
+    const token = generateAccessToken(patientId, 'patient');
+
+    const res = await request(app)
+      .patch('/api/v1/notifications/read-all')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.modified).toBe(2);
+    expect(await Notification.countDocuments({ recipientId: patientId, read: false })).toBe(0);
+    expect(await Notification.countDocuments({ read: false })).toBeGreaterThan(0);
   });
 });

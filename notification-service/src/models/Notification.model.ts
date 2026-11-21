@@ -22,6 +22,7 @@ export interface INotification extends Document {
   appointmentDate: Date;
   status: NotificationStatus;
   sentAt?: Date;
+  read: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -77,6 +78,10 @@ const notificationSchema = new Schema<INotification>(
     sentAt: {
       type: Date,
     },
+    read: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true },
 );
@@ -85,5 +90,6 @@ const notificationSchema = new Schema<INotification>(
 // for the same recipient.
 notificationSchema.index({ eventId: 1, recipientRole: 1 }, { unique: true });
 notificationSchema.index({ recipientId: 1, createdAt: -1 });
+notificationSchema.index({ recipientId: 1, read: 1 });
 
 export const Notification = model<INotification>('Notification', notificationSchema);

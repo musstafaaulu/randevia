@@ -1,7 +1,9 @@
+import { createServer } from 'node:http';
 import app from './app';
 import { connectDB, disconnectDB } from './config/db';
 import { env } from './config/env';
 import { startEventConsumer, stopEventConsumer } from './messaging/eventConsumer';
+import { getIO, initSocketServer } from './realtime/socketServer';
 import logger from './utils/logger';
 
 async function start(): Promise<void> {
@@ -9,12 +11,16 @@ async function start(): Promise<void> {
   // Not awaited: the service starts even if RabbitMQ is down and keeps retrying.
   startEventConsumer();
 
-  const server = app.listen(env.PORT, () => {
+  const httpServer = createServer(app);
+  initSocketServer(httpServer);
+
+  const server = httpServer.listen(env.PORT, () => {
     logger.info(`notification-service listening on port ${env.PORT} [${env.NODE_ENV}]`);
   });
 
   function shutdown(signal: string): void {
     logger.info(`${signal} received, shutting down gracefully`);
+    getIO()?.close();
     server.close(() => {
       // Drain the consumer before the database goes away so in-flight
       // messages can still be written and acked.

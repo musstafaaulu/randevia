@@ -7,6 +7,7 @@ const baseSchema = z.object({
   MONGO_URI: z.string().min(1, 'MONGO_URI is required'),
   JWT_ACCESS_SECRET: z.string().min(1, 'JWT_ACCESS_SECRET is required'),
   RABBITMQ_URL: z.string().default('amqp://localhost:5672'),
+  REDIS_URL: z.string().default('redis://localhost:6379'),
   RABBITMQ_EXCHANGE: z.string().min(1).default('randevia.events'),
   NOTIFICATION_QUEUE: z.string().min(1).default('notification-service.appointment-events'),
   RABBITMQ_PREFETCH: z.coerce.number().int().positive().default(10),
