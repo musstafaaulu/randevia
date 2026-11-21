@@ -49,7 +49,7 @@ Sistem; tek giriş noktası olan bir **API Gateway**, kendi veritabanına sahip 
 - **Rol tabanlı yetkilendirme:** `patient`, `doctor`, `admin` rolleri; doktor rolü yalnızca admin tarafından atanabilir.
 - **Güvenlik:** JWT (access + refresh token), httpOnly refresh cookie, bcrypt ile parola özeti, helmet, CORS, rate limiting.
 - **Gözlemlenebilirlik:** Her isteğe atanan `X-Request-Id` gateway'den servislere taşınır ve tüm loglarda yer alır; yapılandırılmış JSON loglar.
-- **Web arayüzü:** React + TypeScript SPA; Türkçe, mobil uyumlu, yalnızca gateway ile konuşur. Canlı bildirim zili, toast mesajları ve anlık güncellenen doktor müsaitliği içerir.
+- **Web arayüzü:** React + TypeScript SPA; Türkçe, mobil uyumlu, açık/koyu tema, yalnızca gateway ile konuşur. Tanıtım sayfası, doktor arama/filtre, haftalık müsaitlik takvimi, onay pencereleri, profil/şifre yönetimi, admin istatistik paneli, canlı bildirim zili, toast mesajları ve anlık güncellenen doktor müsaitliği içerir.
 - **Tamamen Türkçe:** Arayüz metinleri ve API'nin ürettiği her hata/uyarı mesajı (doğrulama hataları dahil) Türkçe; hata *kodları* ve loglar İngilizce kalır.
 - **Kalite:** TypeScript strict mode, Zod ile girdi ve ortam değişkeni doğrulaması, ESLint + Prettier, 183 backend birim/entegrasyon testi, 27 web bileşen testi (Vitest), 34 adımlık REST uçtan uca test, Socket.io üzerinden iki tarayıcıyla çalışan bir Playwright uçtan uca testi ve her push'ta çalışan bir GitHub Actions CI hattı.
 
@@ -332,7 +332,10 @@ Tüm istekler gateway üzerinden yapılır: `http://localhost:3000`. 🔒 işare
 | POST | `/api/v1/auth/login` | — | Giriş yapar |
 | POST | `/api/v1/auth/refresh` | — | Refresh token (cookie veya gövde) ile yeni token çifti alır |
 | GET | `/api/v1/auth/me` | 🔒 herkes | Oturumdaki kullanıcının profili |
+| PATCH | `/api/v1/auth/me` | 🔒 herkes | Kendi adını günceller |
+| PATCH | `/api/v1/auth/me/password` | 🔒 herkes | Şifresini değiştirir (mevcut şifre doğrulamalı) |
 | GET | `/api/v1/auth/users?role=&page=&limit=` | 🔒 admin | Kullanıcıları listeler, role göre filtreler |
+| GET | `/api/v1/auth/users/stats` | 🔒 admin | Role göre kullanıcı sayıları (admin paneli istatistikleri için) |
 | PATCH | `/api/v1/auth/users/:id/role` | 🔒 admin | Kullanıcının rolünü değiştirir (`patient` / `doctor` / `admin`) |
 
 ### Doktorlar (appointment-service)
@@ -343,6 +346,7 @@ Tüm istekler gateway üzerinden yapılır: `http://localhost:3000`. 🔒 işare
 | GET | `/api/v1/doctors/:id` | 🔒 herkes | Doktor detayı, müsaitlik aralıkları ve dolu saatler (`bookedSlots`) |
 | POST | `/api/v1/doctors/me` | 🔒 doctor | Kendi doktor profilini oluşturur / günceller (ad, uzmanlık, biyografi) |
 | POST | `/api/v1/doctors/me/availability` | 🔒 doctor | Müsaitlik aralığı ekler |
+| DELETE | `/api/v1/doctors/me/availability/:id` | 🔒 doctor | Kendi müsaitlik aralığını siler |
 
 ### Randevular (appointment-service)
 
@@ -350,6 +354,7 @@ Tüm istekler gateway üzerinden yapılır: `http://localhost:3000`. 🔒 işare
 |---|---|---|---|
 | POST | `/api/v1/appointments` | 🔒 patient | Randevu talebi oluşturur (`pending`); `appointment.created` olayı yayınlanır |
 | GET | `/api/v1/appointments/me` | 🔒 patient, doctor | Kullanıcının randevuları |
+| GET | `/api/v1/appointments/stats` | 🔒 admin | Durum dağılımı, toplam doktor/randevu sayısı ve 14 günlük günlük randevu trendi (admin paneli istatistikleri için) |
 | PATCH | `/api/v1/appointments/:id/confirm` | 🔒 doctor | Randevuyu onaylar; `appointment.confirmed` olayı |
 | PATCH | `/api/v1/appointments/:id/cancel` | 🔒 patient | Randevuyu iptal eder; `appointment.cancelled` olayı |
 
