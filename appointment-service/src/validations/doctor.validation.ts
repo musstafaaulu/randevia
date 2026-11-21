@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { zObjectId } from '../utils/objectId';
 
 export const upsertDoctorProfileSchema = z.object({
+  name: z.string().trim().min(2, 'Ad en az 2 karakter olmalı').max(100),
   specialty: z.string().trim().min(2, 'Uzmanlık alanı en az 2 karakter olmalı').max(100),
   bio: z.string().trim().max(1000).optional(),
 });

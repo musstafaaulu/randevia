@@ -45,7 +45,7 @@ export async function upsertDoctorProfile(
 ): Promise<IDoctor> {
   const doctor = await Doctor.findOneAndUpdate(
     { userId },
-    { $set: { specialty: input.specialty, bio: input.bio } },
+    { $set: { name: input.name, specialty: input.specialty, bio: input.bio } },
     { returnDocument: 'after', upsert: true, runValidators: true },
   );
 

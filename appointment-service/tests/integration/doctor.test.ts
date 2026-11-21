@@ -33,7 +33,7 @@ describe('GET /api/v1/doctors', () => {
     await request(app)
       .post('/api/v1/doctors/me')
       .set('Authorization', `Bearer ${doctorToken}`)
-      .send({ specialty: 'Cardiology', bio: 'Heart specialist' });
+      .send({ name: 'Dr. Test', specialty: 'Cardiology', bio: 'Heart specialist' });
 
     const patientToken = generateAccessToken(newUserId(), 'patient');
     const res = await request(app)
@@ -43,6 +43,7 @@ describe('GET /api/v1/doctors', () => {
     expect(res.status).toBe(200);
     expect(res.body.data.doctors).toHaveLength(1);
     expect(res.body.data.doctors[0].specialty).toBe('Cardiology');
+    expect(res.body.data.doctors[0].name).toBe('Dr. Test');
   });
 });
 
@@ -52,10 +53,21 @@ describe('POST /api/v1/doctors/me', () => {
     const res = await request(app)
       .post('/api/v1/doctors/me')
       .set('Authorization', `Bearer ${token}`)
-      .send({ specialty: 'Dermatology' });
+      .send({ name: 'Dr. Jane Doe', specialty: 'Dermatology' });
 
     expect(res.status).toBe(200);
+    expect(res.body.data.doctor.name).toBe('Dr. Jane Doe');
     expect(res.body.data.doctor.specialty).toBe('Dermatology');
+  });
+
+  it('rejects a profile without a name', async () => {
+    const token = generateAccessToken(newUserId(), 'doctor');
+    const res = await request(app)
+      .post('/api/v1/doctors/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ specialty: 'Dermatology' });
+
+    expect(res.status).toBe(400);
   });
 
   it('rejects patients from creating a doctor profile', async () => {
@@ -63,7 +75,7 @@ describe('POST /api/v1/doctors/me', () => {
     const res = await request(app)
       .post('/api/v1/doctors/me')
       .set('Authorization', `Bearer ${token}`)
-      .send({ specialty: 'Dermatology' });
+      .send({ name: 'Dr. Test', specialty: 'Dermatology' });
 
     expect(res.status).toBe(403);
   });
@@ -73,7 +85,7 @@ describe('POST /api/v1/doctors/me', () => {
     const res = await request(app)
       .post('/api/v1/doctors/me')
       .set('Authorization', `Bearer ${token}`)
-      .send({ specialty: 'A' });
+      .send({ name: 'Dr. Test', specialty: 'A' });
 
     expect(res.status).toBe(400);
   });
@@ -86,7 +98,7 @@ describe('GET /api/v1/doctors/:id', () => {
     const createRes = await request(app)
       .post('/api/v1/doctors/me')
       .set('Authorization', `Bearer ${doctorToken}`)
-      .send({ specialty: 'Neurology' });
+      .send({ name: 'Dr. Test', specialty: 'Neurology' });
     const doctorId = createRes.body.data.doctor._id as string;
 
     const start = new Date(Date.now() + 60 * 60 * 1000);
@@ -113,7 +125,7 @@ describe('GET /api/v1/doctors/:id', () => {
     const createRes = await request(app)
       .post('/api/v1/doctors/me')
       .set('Authorization', `Bearer ${doctorToken}`)
-      .send({ specialty: 'Cardiology' });
+      .send({ name: 'Dr. Test', specialty: 'Cardiology' });
     const doctorId = createRes.body.data.doctor._id as string;
 
     const doctor = await Doctor.findById(doctorId);
@@ -161,7 +173,7 @@ describe('POST /api/v1/doctors/me/availability', () => {
     await request(app)
       .post('/api/v1/doctors/me')
       .set('Authorization', `Bearer ${token}`)
-      .send({ specialty: 'ENT' });
+      .send({ name: 'Dr. Test', specialty: 'ENT' });
 
     const start = new Date(Date.now() + 60 * 60 * 1000);
     const end = new Date(start.getTime() + 30 * 60 * 1000);
@@ -179,7 +191,7 @@ describe('POST /api/v1/doctors/me/availability', () => {
     await request(app)
       .post('/api/v1/doctors/me')
       .set('Authorization', `Bearer ${token}`)
-      .send({ specialty: 'ENT' });
+      .send({ name: 'Dr. Test', specialty: 'ENT' });
 
     const start = new Date(Date.now() + 60 * 60 * 1000);
     const end = new Date(start.getTime() - 30 * 60 * 1000);

@@ -27,7 +27,7 @@ describe('Appointment operations while RabbitMQ is unavailable', () => {
     const doctorRes = await request(app)
       .post('/api/v1/doctors/me')
       .set('Authorization', `Bearer ${doctorToken}`)
-      .send({ specialty: 'Cardiology' });
+      .send({ name: 'Dr. Test', specialty: 'Cardiology' });
     const patientToken = generateAccessToken(newUserId(), 'patient');
 
     const bookRes = await request(app)

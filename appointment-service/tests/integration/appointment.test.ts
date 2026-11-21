@@ -33,7 +33,7 @@ async function createDoctor() {
   const res = await request(app)
     .post('/api/v1/doctors/me')
     .set('Authorization', `Bearer ${token}`)
-    .send({ specialty: 'General Medicine' });
+    .send({ name: 'Dr. Test', specialty: 'General Medicine' });
 
   return { userId, token, doctorId: res.body.data.doctor._id as string };
 }
