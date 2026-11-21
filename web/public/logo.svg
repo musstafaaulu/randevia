@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 48">
+  <defs>
+    <linearGradient id="randevia-logo-g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14b8a6" />
+      <stop offset="1" stop-color="#0f766e" />
+    </linearGradient>
+    <clipPath id="randevia-logo-card">
+      <rect x="10.5" y="12" width="27" height="25.5" rx="5.25" />
+    </clipPath>
+  </defs>
+  <rect x="1.5" y="1.5" width="45" height="45" rx="12" fill="url(#randevia-logo-g)" />
+  <rect x="15" y="5.25" width="3.75" height="10.5" rx="1.9" fill="#fff" opacity="0.9" />
+  <rect x="29.25" y="5.25" width="3.75" height="10.5" rx="1.9" fill="#fff" opacity="0.9" />
+  <g clip-path="url(#randevia-logo-card)">
+    <rect x="10.5" y="12" width="27" height="25.5" fill="#fff" />
+    <rect x="10.5" y="12" width="27" height="8.25" fill="#2563eb" />
+  </g>
+  <path
+    d="M14.75 31 h3.75 l1.9 -6.75 l3 12 l2.25 -9 l1.5 3.75 h6.4"
+    fill="none"
+    stroke="#0f766e"
+    stroke-width="2.25"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <text
+    x="58"
+    y="32"
+    font-family="Inter, 'Segoe UI', system-ui, sans-serif"
+    font-size="26"
+    font-weight="700"
+    letter-spacing="-0.3"
+    fill="#0f172a"
+  >Randevia</text>
+</svg>

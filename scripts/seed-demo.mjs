@@ -106,7 +106,7 @@ async function setupDoctor(doctorInput, adminToken) {
 
   const profile = await call('POST', '/api/v1/doctors/me', {
     token,
-    body: { specialty: doctorInput.specialty, bio: doctorInput.bio },
+    body: { name: doctorInput.name, specialty: doctorInput.specialty, bio: doctorInput.bio },
   });
   const doctorId = profile.json.data.doctor._id;
 

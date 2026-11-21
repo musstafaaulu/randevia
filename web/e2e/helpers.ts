@@ -75,7 +75,11 @@ export async function seedDoctorWithAvailability(): Promise<SeededDoctor> {
   const doctorToken = doctorLogin.data.accessToken as string;
 
   const specialty = `E2E Kardiyoloji ${randomSuffix()}`;
-  const profileRes = await postJson('/api/v1/doctors/me', { specialty }, doctorToken);
+  const profileRes = await postJson(
+    '/api/v1/doctors/me',
+    { name: 'E2E Doktor', specialty },
+    doctorToken,
+  );
   const doctorId = profileRes.data.doctor._id as string;
 
   const availabilityStart = new Date(Date.now() + 60 * 60 * 1000);

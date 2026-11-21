@@ -12,6 +12,7 @@ export function getDoctor(
 }
 
 export function upsertMyDoctorProfile(input: {
+  name: string;
   specialty: string;
   bio?: string;
 }): Promise<{ doctor: Doctor }> {

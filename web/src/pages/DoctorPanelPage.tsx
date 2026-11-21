@@ -3,6 +3,7 @@ import { confirmAppointment, listMyAppointments } from '../api/appointments';
 import { ApiError } from '../api/client';
 import { addMyAvailability, getDoctor, listDoctors, upsertMyDoctorProfile } from '../api/doctors';
 import { useAuth } from '../auth/AuthContext';
+import { EmptyState } from '../components/EmptyState';
 import { Spinner } from '../components/Spinner';
 import { useSocket } from '../socket/SocketContext';
 import type { Appointment, Availability, Doctor } from '../types/api';
@@ -69,10 +70,11 @@ export function DoctorPanelPage() {
 
   async function handleProfileSubmit(event: FormEvent) {
     event.preventDefault();
+    if (!user) return;
     setError(null);
     setMessage(null);
     try {
-      await upsertMyDoctorProfile({ specialty, bio: bio || undefined });
+      await upsertMyDoctorProfile({ name: user.name, specialty, bio: bio || undefined });
       setMessage('Profil kaydedildi.');
       await refresh();
     } catch (err) {
@@ -121,7 +123,7 @@ export function DoctorPanelPage() {
       <section className="panel-section">
         <h2 className="section-title">Bekleyen Randevu Talepleri</h2>
         {pending.length === 0 ? (
-          <p>Bekleyen randevu talebi yok.</p>
+          <EmptyState icon="✅" text="Bekleyen randevu talebi yok." />
         ) : (
           <ul className="appointment-list">
             {pending.map((appointment) => (

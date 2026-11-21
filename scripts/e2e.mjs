@@ -170,7 +170,7 @@ const doctorToken = doctorLogin.body.data.accessToken;
 section('appointment-service: doctors and appointments');
 const profile = await call('POST', '/api/v1/doctors/me', {
   token: doctorToken,
-  body: { specialty: 'Cardiology', bio: 'E2E test doctor' },
+  body: { name: 'E2E Doctor', specialty: 'Cardiology', bio: 'E2E test doctor' },
 });
 check(profile.status === 200, 'doctor creates a profile', profile.body);
 const doctorId = profile.body.data.doctor._id;

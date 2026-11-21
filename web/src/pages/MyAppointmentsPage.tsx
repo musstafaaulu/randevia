@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { cancelAppointment, confirmAppointment, listMyAppointments } from '../api/appointments';
 import { ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { Spinner } from '../components/Spinner';
+import { EmptyState } from '../components/EmptyState';
+import { ListSkeleton } from '../components/Skeleton';
 import { useSocket } from '../socket/SocketContext';
 import type { Appointment, AppointmentStatus } from '../types/api';
 
@@ -68,15 +69,15 @@ export function MyAppointmentsPage() {
     }
   }
 
-  if (!appointments) return <Spinner label="Randevular yükleniyor…" />;
-
   return (
     <div className="page">
       <h1>Randevularım</h1>
       {error && <div className="form-error">{error}</div>}
 
-      {appointments.length === 0 ? (
-        <p>Henüz randevunuz yok.</p>
+      {!appointments ? (
+        <ListSkeleton />
+      ) : appointments.length === 0 ? (
+        <EmptyState icon="📅" text="Henüz randevunuz yok." />
       ) : (
         <ul className="appointment-list">
           {appointments.map((appointment) => (

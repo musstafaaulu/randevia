@@ -10,6 +10,7 @@ export interface User {
 export interface Doctor {
   _id: string;
   userId: string;
+  name: string;
   specialty: string;
   bio?: string;
   createdAt: string;

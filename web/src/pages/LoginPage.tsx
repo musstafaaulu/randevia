@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../api/client';
+import { AuthHero } from '../components/AuthHero';
 
 export function LoginPage() {
   const { user, login } = useAuth();
@@ -31,42 +32,45 @@ export function LoginPage() {
 
   return (
     <div className="auth-page">
-      <form className="auth-card" onSubmit={handleSubmit}>
-        <h1>Giriş Yap</h1>
-        <p className="auth-subtitle">Randevia hesabınızla devam edin.</p>
+      <div className="auth-layout">
+        <AuthHero />
+        <form className="auth-card" onSubmit={handleSubmit}>
+          <h1>Giriş Yap</h1>
+          <p className="auth-subtitle">Randevia hesabınızla devam edin.</p>
 
-        {error && <div className="form-error">{error}</div>}
+          {error && <div className="form-error">{error}</div>}
 
-        <label>
-          E-posta
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-          />
-        </label>
+          <label>
+            E-posta
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+            />
+          </label>
 
-        <label>
-          Şifre
-          <input
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-          />
-        </label>
+          <label>
+            Şifre
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+            />
+          </label>
 
-        <button className="primary-button full-width" type="submit" disabled={submitting}>
-          {submitting ? 'Giriş yapılıyor…' : 'Giriş Yap'}
-        </button>
+          <button className="primary-button full-width" type="submit" disabled={submitting}>
+            {submitting ? 'Giriş yapılıyor…' : 'Giriş Yap'}
+          </button>
 
-        <p className="auth-footer">
-          Hesabınız yok mu? <Link to="/kayit">Kayıt olun</Link>
-        </p>
-      </form>
+          <p className="auth-footer">
+            Hesabınız yok mu? <Link to="/kayit">Kayıt olun</Link>
+          </p>
+        </form>
+      </div>
     </div>
   );
 }

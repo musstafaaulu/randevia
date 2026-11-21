@@ -4,8 +4,10 @@ import { createAppointment } from '../api/appointments';
 import { ApiError } from '../api/client';
 import { getDoctor } from '../api/doctors';
 import { useAuth } from '../auth/AuthContext';
+import { EmptyState } from '../components/EmptyState';
 import { Spinner } from '../components/Spinner';
 import { useSocket } from '../socket/SocketContext';
+import { avatarColor } from '../utils/avatarColor';
 import type { Availability, Doctor, SlotUpdatedPayload } from '../types/api';
 
 const SLOT_MINUTES = 30;
@@ -105,11 +107,16 @@ export function DoctorDetailPage() {
   return (
     <div className="page">
       <div className="doctor-header">
-        <div className="doctor-avatar doctor-avatar-lg" aria-hidden="true">
-          {doctor.specialty.charAt(0).toUpperCase()}
+        <div
+          className="doctor-avatar doctor-avatar-lg"
+          style={{ background: avatarColor(doctor.name) }}
+          aria-hidden="true"
+        >
+          {doctor.name.charAt(0).toUpperCase()}
         </div>
         <div>
-          <h1>{doctor.specialty}</h1>
+          <h1>{doctor.name}</h1>
+          <span className="specialty-tag">{doctor.specialty}</span>
           {doctor.bio && <p className="doctor-bio">{doctor.bio}</p>}
         </div>
       </div>
@@ -118,7 +125,7 @@ export function DoctorDetailPage() {
 
       <h2 className="section-title">Müsait Saatler</h2>
       {slots.length === 0 ? (
-        <p>Bu doktor için yaklaşan müsaitlik bulunmuyor.</p>
+        <EmptyState icon="🗓️" text="Bu doktor için yaklaşan müsaitlik bulunmuyor." />
       ) : (
         <ul className="slot-list">
           {slots.map((slot) => {

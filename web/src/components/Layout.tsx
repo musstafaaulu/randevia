@@ -13,6 +13,7 @@ export function Layout() {
       <header className="top-nav">
         <div className="top-nav-inner">
           <Link to="/" className="brand" onClick={() => setMenuOpen(false)}>
+            <img src="/favicon.svg" alt="" className="brand-icon" aria-hidden="true" />
             Randevia
           </Link>
 
