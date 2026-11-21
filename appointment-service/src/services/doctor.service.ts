@@ -1,3 +1,4 @@
+import { Appointment } from '../models/Appointment.model';
 import { Availability, IAvailability } from '../models/Availability.model';
 import { Doctor, IDoctor } from '../models/Doctor.model';
 import { ApiError } from '../utils/ApiError';
@@ -12,20 +13,30 @@ export async function listDoctors(): Promise<IDoctor[]> {
 
 export async function getDoctorById(
   id: string,
-): Promise<{ doctor: IDoctor; availability: IAvailability[] }> {
+): Promise<{ doctor: IDoctor; availability: IAvailability[]; bookedSlots: Date[] }> {
   const doctor = await Doctor.findById(id);
   if (!doctor) {
     throw new ApiError(404, 'Doctor not found');
   }
 
-  const availability = await Availability.find({
-    doctorId: doctor._id,
-    startTime: { $gte: new Date() },
-  }).sort({
-    startTime: 1,
-  });
+  const [availability, booked] = await Promise.all([
+    Availability.find({
+      doctorId: doctor._id,
+      startTime: { $gte: new Date() },
+    }).sort({
+      startTime: 1,
+    }),
+    // Lets the booking UI grey out already-taken times without exposing
+    // whose appointment it is; combined with the "slot.updated" socket
+    // event, it is what makes availability feel live.
+    Appointment.find({
+      doctorId: doctor._id,
+      status: { $in: ['pending', 'confirmed'] },
+      date: { $gte: new Date() },
+    }).select('date'),
+  ]);
 
-  return { doctor, availability };
+  return { doctor, availability, bookedSlots: booked.map((appointment) => appointment.date) };
 }
 
 export async function upsertDoctorProfile(

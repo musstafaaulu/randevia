@@ -13,8 +13,8 @@ export async function listDoctorsHandler(_req: Request, res: Response): Promise<
 
 export async function getDoctorHandler(req: Request, res: Response): Promise<void> {
   const { id } = req.params as unknown as DoctorIdParam;
-  const { doctor, availability } = await doctorService.getDoctorById(id);
-  res.status(200).json({ success: true, data: { doctor, availability } });
+  const { doctor, availability, bookedSlots } = await doctorService.getDoctorById(id);
+  res.status(200).json({ success: true, data: { doctor, availability, bookedSlots } });
 }
 
 export async function upsertDoctorProfileHandler(req: Request, res: Response): Promise<void> {

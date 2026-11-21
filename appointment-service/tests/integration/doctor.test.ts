@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import request from 'supertest';
 import app from '../../src/app';
 import { env } from '../../src/config/env';
+import { Appointment } from '../../src/models/Appointment.model';
 import { Availability } from '../../src/models/Availability.model';
 import { Doctor } from '../../src/models/Doctor.model';
 import { generateAccessToken, newUserId } from '../utils/token';
@@ -13,6 +14,7 @@ beforeAll(async () => {
 afterEach(async () => {
   await Doctor.deleteMany({});
   await Availability.deleteMany({});
+  await Appointment.deleteMany({});
 });
 
 afterAll(async () => {
@@ -102,6 +104,36 @@ describe('GET /api/v1/doctors/:id', () => {
     expect(res.status).toBe(200);
     expect(res.body.data.doctor.specialty).toBe('Neurology');
     expect(res.body.data.availability).toHaveLength(1);
+    expect(res.body.data.bookedSlots).toEqual([]);
+  });
+
+  it('lists pending and confirmed appointment times as booked slots, without the completed/cancelled ones', async () => {
+    const doctorUserId = newUserId();
+    const doctorToken = generateAccessToken(doctorUserId, 'doctor');
+    const createRes = await request(app)
+      .post('/api/v1/doctors/me')
+      .set('Authorization', `Bearer ${doctorToken}`)
+      .send({ specialty: 'Cardiology' });
+    const doctorId = createRes.body.data.doctor._id as string;
+
+    const doctor = await Doctor.findById(doctorId);
+    const pendingDate = new Date(Date.now() + 60 * 60 * 1000);
+    const confirmedDate = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    const cancelledDate = new Date(Date.now() + 3 * 60 * 60 * 1000);
+    await Appointment.create([
+      { patientId: newUserId(), doctorId: doctor!._id, date: pendingDate, status: 'pending' },
+      { patientId: newUserId(), doctorId: doctor!._id, date: confirmedDate, status: 'confirmed' },
+      { patientId: newUserId(), doctorId: doctor!._id, date: cancelledDate, status: 'cancelled' },
+    ]);
+
+    const patientToken = generateAccessToken(newUserId(), 'patient');
+    const res = await request(app)
+      .get(`/api/v1/doctors/${doctorId}`)
+      .set('Authorization', `Bearer ${patientToken}`);
+
+    expect(res.status).toBe(200);
+    const bookedSlots = (res.body.data.bookedSlots as string[]).map((d) => new Date(d).getTime());
+    expect(bookedSlots.sort()).toEqual([pendingDate.getTime(), confirmedDate.getTime()].sort());
   });
 
   it('returns 400 for a malformed id', async () => {
