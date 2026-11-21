@@ -172,6 +172,24 @@ services:
       notification-service:
         condition: service_healthy
 
+  # ------------------------------------------------------------------ web --
+  web:
+    <<: *service
+    build:
+      context: ./web
+      args:
+        # Baked into the static bundle at build time; the browser (not this
+        # container) is what talks to the gateway, at whatever host/port the
+        # person opening the site uses.
+        VITE_API_BASE_URL: ${WEB_API_BASE_URL:-http://localhost:3000}
+    image: randevia/web
+    container_name: randevia-web
+    ports:
+      - '${WEB_PORT:-8080}:80'
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+
 volumes:
   rabbitmq_data:
   mongo_auth_data:
