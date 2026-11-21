@@ -8,6 +8,7 @@ import { notFoundHandler } from './middlewares/notFoundHandler';
 import { createRateLimiters } from './middlewares/rateLimiters';
 import { requestId } from './middlewares/requestId';
 import { createServiceProxy } from './proxy/createServiceProxy';
+import { createWsProxy } from './proxy/createWsProxy';
 import { SERVICE_ROUTES, ServiceName, serviceUrls } from './proxy/services';
 import { createHealthRoutes } from './routes/health.routes';
 import logger from './utils/logger';
@@ -66,6 +67,12 @@ export function createApp(config: GatewayConfig = env): Application {
       }),
     );
   }
+
+  // Socket.io never goes through /api/v1; its websocket upgrade bypasses
+  // Express entirely, so server.ts wires the "upgrade" handler kept here.
+  const wsProxy = createWsProxy(urls['notification-service'], '/socket.io');
+  app.use(wsProxy.middleware);
+  app.set('wsUpgrade', wsProxy.upgrade);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

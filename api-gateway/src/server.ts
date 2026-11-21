@@ -1,6 +1,9 @@
+import type { IncomingMessage } from 'node:http';
+import type { Socket } from 'node:net';
 import { createApp } from './app';
 import { env } from './config/env';
 import { SERVICE_ROUTES, serviceUrls } from './proxy/services';
+import type { UpgradeHandler } from './proxy/createWsProxy';
 import logger from './utils/logger';
 
 const app = createApp(env);
@@ -11,6 +14,13 @@ const server = app.listen(env.PORT, () => {
   for (const { prefix, service } of SERVICE_ROUTES) {
     logger.info(`  ${prefix} -> ${service} (${urls[service]})`);
   }
+  logger.info(`  /socket.io -> notification-service (${urls['notification-service']})`);
+});
+
+// The websocket upgrade is handled outside of Express; app.ts hands back the
+// handler it built alongside the Socket.io proxy middleware.
+server.on('upgrade', (req: IncomingMessage, socket: Socket, head: Buffer) => {
+  (app.get('wsUpgrade') as UpgradeHandler)(req, socket, head);
 });
 
 function shutdown(signal: string): void {
