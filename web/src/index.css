@@ -5,12 +5,34 @@
   --color-danger: #dc2626;
   --color-bg: #f4f7f6;
   --color-surface: #ffffff;
+  --color-surface-muted: #f8fafb;
   --color-border: #e2e8e6;
   --color-text: #0f172a;
   --color-text-muted: #5b6b68;
   --radius: 12px;
   --shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
   --shadow-hover: 0 10px 28px rgba(15, 23, 42, 0.12);
+
+  --color-error-bg: #fef2f2;
+  --color-error-border: #fecaca;
+  --color-error-text: #dc2626;
+  --color-notice-bg: #ecfdf5;
+  --color-notice-border: #a7f3d0;
+  --color-notice-text: #0b5e57;
+  --color-specialty-bg: #eef2ff;
+  --color-specialty-text: #2563eb;
+  --color-skeleton-base: #e9eeed;
+  --color-skeleton-shine: #f4f7f6;
+
+  --badge-pending-bg: #fef3c7;
+  --badge-pending-text: #92400e;
+  --badge-confirmed-bg: #d1fae5;
+  --badge-confirmed-text: #065f46;
+  --badge-cancelled-bg: #fee2e2;
+  --badge-cancelled-text: #991b1b;
+  --badge-completed-bg: #e0e7ff;
+  --badge-completed-text: #3730a3;
+
   font-family:
     'Inter',
     'Segoe UI',
@@ -20,6 +42,41 @@
     Helvetica,
     Arial,
     sans-serif;
+}
+
+:root[data-theme='dark'] {
+  --color-primary: #2dd4bf;
+  --color-primary-dark: #14b8a6;
+  --color-accent: #60a5fa;
+  --color-danger: #f87171;
+  --color-bg: #0b1220;
+  --color-surface: #16213a;
+  --color-surface-muted: #1c2a47;
+  --color-border: #2a3b5c;
+  --color-text: #e5ecf5;
+  --color-text-muted: #93a4bf;
+  --shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  --shadow-hover: 0 10px 28px rgba(0, 0, 0, 0.5);
+
+  --color-error-bg: #3a1a1e;
+  --color-error-border: #6b2630;
+  --color-error-text: #fca5a5;
+  --color-notice-bg: #0f2e28;
+  --color-notice-border: #1f5a4d;
+  --color-notice-text: #6ee7c7;
+  --color-specialty-bg: #1e2a52;
+  --color-specialty-text: #93b4fd;
+  --color-skeleton-base: #1c2a47;
+  --color-skeleton-shine: #26365a;
+
+  --badge-pending-bg: #3d2c0c;
+  --badge-pending-text: #fcd34d;
+  --badge-confirmed-bg: #0d3328;
+  --badge-confirmed-text: #6ee7b7;
+  --badge-cancelled-bg: #3a1a1e;
+  --badge-cancelled-text: #fca5a5;
+  --badge-completed-bg: #241d4d;
+  --badge-completed-text: #b4b4f7;
 }
 
 * {
@@ -36,11 +93,44 @@ body {
   background: var(--color-bg);
   color: var(--color-text);
   -webkit-font-smoothing: antialiased;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 a {
   color: var(--color-accent);
   text-decoration: none;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.doctor-card,
+.panel-section,
+.auth-card,
+.modal-dialog,
+.slot-item,
+.appointment-item,
+.week-day,
+.bell-dropdown,
+.data-table,
+.empty-state,
+.stat-card,
+input,
+select,
+textarea {
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
 }
 
 button {
@@ -126,6 +216,24 @@ button {
   margin-left: auto;
 }
 
+.theme-toggle {
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  border-radius: 999px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+
+.theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
 .user-chip {
   font-weight: 600;
   font-size: 0.9rem;
@@ -165,7 +273,7 @@ button {
 }
 
 .secondary-button {
-  background: #fff;
+  background: var(--color-surface);
   color: var(--color-primary-dark);
   border-color: var(--color-border);
 }
@@ -176,13 +284,13 @@ button {
 }
 
 .danger-button {
-  background: #fff;
+  background: var(--color-surface);
   color: var(--color-danger);
-  border-color: #fca5a5;
+  border-color: var(--color-error-border);
 }
 
 .danger-button:hover:not(:disabled) {
-  background: #fef2f2;
+  background: var(--color-error-bg);
   transform: translateY(-1px);
 }
 
@@ -463,7 +571,12 @@ textarea {
   padding: 0.55rem 0.7rem;
   border-radius: 8px;
   border: 1px solid var(--color-border);
-  background: #fff;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+input:disabled {
+  opacity: 0.65;
 }
 
 textarea {
@@ -478,18 +591,18 @@ textarea {
 }
 
 .form-error {
-  background: #fef2f2;
-  color: var(--color-danger);
-  border: 1px solid #fecaca;
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
+  border: 1px solid var(--color-error-border);
   border-radius: 8px;
   padding: 0.6rem 0.8rem;
   font-size: 0.9rem;
 }
 
 .form-notice {
-  background: #ecfdf5;
-  color: var(--color-primary-dark);
-  border: 1px solid #a7f3d0;
+  background: var(--color-notice-bg);
+  color: var(--color-notice-text);
+  border: 1px solid var(--color-notice-border);
   border-radius: 8px;
   padding: 0.6rem 0.8rem;
   font-size: 0.9rem;
@@ -552,8 +665,8 @@ textarea {
 
 .specialty-tag {
   display: inline-block;
-  background: #eef2ff;
-  color: var(--color-accent);
+  background: var(--color-specialty-bg);
+  color: var(--color-specialty-text);
   font-size: 0.78rem;
   font-weight: 700;
   padding: 0.15rem 0.6rem;
@@ -708,23 +821,23 @@ textarea {
 }
 
 .status-pending {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--badge-pending-bg);
+  color: var(--badge-pending-text);
 }
 
 .status-confirmed {
-  background: #d1fae5;
-  color: #065f46;
+  background: var(--badge-confirmed-bg);
+  color: var(--badge-confirmed-text);
 }
 
 .status-cancelled {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--badge-cancelled-bg);
+  color: var(--badge-cancelled-text);
 }
 
 .status-completed {
-  background: #e0e7ff;
-  color: #3730a3;
+  background: var(--badge-completed-bg);
+  color: var(--badge-completed-text);
 }
 
 .availability-list li {
@@ -916,7 +1029,7 @@ textarea {
 }
 
 .data-table th {
-  background: #eef5f3;
+  background: var(--color-surface-muted);
   font-weight: 700;
 }
 
@@ -989,7 +1102,7 @@ textarea {
 }
 
 .bell-item:hover {
-  background: #f8fafb;
+  background: var(--color-surface-muted);
 }
 
 .bell-item p {
@@ -1000,11 +1113,11 @@ textarea {
 
 .bell-item time {
   font-size: 0.75rem;
-  color: #94a3a0;
+  color: var(--color-text-muted);
 }
 
 .bell-item-unread {
-  background: #eef9f6;
+  background: var(--color-notice-bg);
   font-weight: 600;
 }
 
@@ -1139,7 +1252,12 @@ textarea {
 /* ------------------------------------------------------------ skeleton -- */
 
 .skeleton {
-  background: linear-gradient(90deg, #e9eeed 25%, #f4f7f6 37%, #e9eeed 63%);
+  background: linear-gradient(
+    90deg,
+    var(--color-skeleton-base) 25%,
+    var(--color-skeleton-shine) 37%,
+    var(--color-skeleton-base) 63%
+  );
   background-size: 400% 100%;
   animation: skeleton-shimmer 1.4s ease infinite;
   border-radius: 6px;

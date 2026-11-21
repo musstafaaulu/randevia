@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { NotificationBell } from './NotificationBell';
+import { ThemeToggle } from './ThemeToggle';
 import { ToastStack } from './ToastStack';
 
 export function Layout() {
@@ -49,6 +50,7 @@ export function Layout() {
           </nav>
 
           <div className="nav-actions">
+            <ThemeToggle />
             {user ? (
               <>
                 <NotificationBell />

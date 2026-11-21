@@ -2,6 +2,7 @@ import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { SocketProvider } from './socket/SocketContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { ThemeProvider } from './theme/ThemeContext';
 import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Spinner } from './components/Spinner';
@@ -58,13 +59,15 @@ function AppRoutes() {
 export function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <SocketProvider>
-          <NotificationProvider>
-            <AppRoutes />
-          </NotificationProvider>
-        </SocketProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <SocketProvider>
+            <NotificationProvider>
+              <AppRoutes />
+            </NotificationProvider>
+          </SocketProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }
