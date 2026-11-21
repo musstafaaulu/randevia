@@ -17,6 +17,12 @@ Sistem; tek giriş noktası olan bir **API Gateway**, kendi veritabanına sahip 
 
 > Geliştirici: **Mustafa Ulu**
 
+<p align="center">
+  <img src="docs/screenshots/live-notification.gif" alt="Hasta bir doktora randevu alır almaz, doktorun ekranında sayfa yenilenmeden beliren canlı bildirim" width="720" />
+  <br />
+  <em>Solda hasta, sağda doktor — hasta randevu alır almaz doktorun ekranına sayfa yenilenmeden bildirim düşüyor.</em>
+</p>
+
 ---
 
 ## İçindekiler
