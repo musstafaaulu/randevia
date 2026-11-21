@@ -4,11 +4,12 @@
 // scripts/e2e.mjs and the Playwright suite both exercise the real gateway
 // (there is no delete endpoint and no separate test stack for them to run
 // against), so every run leaves behind a throwaway user/doctor/appointment.
-// All real accounts - admin, the two demo accounts and the seed doctors -
-// use an @randevia.local address; every test script only ever registers
-// @test.local / @e2e.test addresses. That one rule is the cleanup boundary:
-// any auth user NOT on @randevia.local gets deleted, and everything in the
-// other two databases that references such a user cascades with it.
+// Every test script only ever registers @e2e.test addresses - never a real
+// domain, never @randevia.local - so that one address is the entire cleanup
+// boundary: an auth user on @e2e.test gets deleted, and everything in the
+// other two databases that references such a user cascades with it. Every
+// other account - admin, the demo accounts, the seed doctors, and any real
+// person who registers with their own email - is left untouched.
 //
 //   docker compose up -d
 //   node scripts/clean-test-data.mjs
@@ -20,7 +21,7 @@
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-const KEEP_EMAIL_SUFFIX = '@randevia.local';
+const DELETE_EMAIL_SUFFIX = '@e2e.test';
 const OBJECT_ID_RE = /^[0-9a-f]{24}$/i;
 
 function runMongosh(container, database, script) {
@@ -59,8 +60,8 @@ export async function cleanTestData() {
     'randevia_auth',
     'print(JSON.stringify(db.users.find({}, { email: 1 }).toArray().map((u) => ({ id: u._id.toString(), email: u.email }))))',
   );
-  const keepIds = users.filter((u) => u.email.toLowerCase().endsWith(KEEP_EMAIL_SUFFIX)).map((u) => u.id);
-  const deleteIds = users.filter((u) => !u.email.toLowerCase().endsWith(KEEP_EMAIL_SUFFIX)).map((u) => u.id);
+  const deleteIds = users.filter((u) => u.email.toLowerCase().endsWith(DELETE_EMAIL_SUFFIX)).map((u) => u.id);
+  const keepIds = users.filter((u) => !u.email.toLowerCase().endsWith(DELETE_EMAIL_SUFFIX)).map((u) => u.id);
 
   console.log(`auth: ${users.length} user(s) total, keeping ${keepIds.length}, deleting ${deleteIds.length}`);
   if (deleteIds.length > 0) {
@@ -116,7 +117,7 @@ export async function cleanTestData() {
   );
   console.log(`notification: deleted ${deletedNotifications} stray notification(s)`);
 
-  console.log('\nDone. Only @randevia.local accounts (admin, demo and seed doctors) remain.');
+  console.log('\nDone. Only @e2e.test accounts were removed; every other account is untouched.');
 }
 
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];

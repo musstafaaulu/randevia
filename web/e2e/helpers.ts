@@ -45,13 +45,13 @@ export interface SeededPatient {
 const PASSWORD = 'gizli-parola-123';
 
 export async function seedPatient(): Promise<SeededPatient> {
-  const email = `e2e-patient-${randomSuffix()}@test.local`;
+  const email = `e2e-patient-${randomSuffix()}@e2e.test`;
   await postJson('/api/v1/auth/register', { name: 'E2E Hasta', email, password: PASSWORD });
   return { email, password: PASSWORD };
 }
 
 export async function seedDoctorWithAvailability(): Promise<SeededDoctor> {
-  const email = `e2e-doctor-${randomSuffix()}@test.local`;
+  const email = `e2e-doctor-${randomSuffix()}@e2e.test`;
   const regRes = await postJson('/api/v1/auth/register', {
     name: 'E2E Doktor',
     email,
