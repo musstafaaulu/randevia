@@ -31,12 +31,12 @@ const notificationSchema = new Schema<INotification>(
   {
     recipientId: {
       type: Schema.Types.ObjectId,
-      required: [true, 'Recipient id is required'],
+      required: [true, 'Alıcı kimliği gerekli'],
     },
     recipientRole: {
       type: String,
       enum: RECIPIENT_ROLES,
-      required: [true, 'Recipient role is required'],
+      required: [true, 'Alıcı rolü gerekli'],
     },
     channel: {
       type: String,
@@ -46,29 +46,29 @@ const notificationSchema = new Schema<INotification>(
     type: {
       type: String,
       enum: APPOINTMENT_EVENT_TYPES,
-      required: [true, 'Notification type is required'],
+      required: [true, 'Bildirim türü gerekli'],
     },
     title: {
       type: String,
-      required: [true, 'Title is required'],
+      required: [true, 'Başlık gerekli'],
       trim: true,
     },
     message: {
       type: String,
-      required: [true, 'Message is required'],
+      required: [true, 'Mesaj gerekli'],
       trim: true,
     },
     eventId: {
       type: String,
-      required: [true, 'Event id is required'],
+      required: [true, 'Olay kimliği gerekli'],
     },
     appointmentId: {
       type: Schema.Types.ObjectId,
-      required: [true, 'Appointment id is required'],
+      required: [true, 'Randevu kimliği gerekli'],
     },
     appointmentDate: {
       type: Date,
-      required: [true, 'Appointment date is required'],
+      required: [true, 'Randevu tarihi gerekli'],
     },
     status: {
       type: String,

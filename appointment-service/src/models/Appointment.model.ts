@@ -18,16 +18,16 @@ const appointmentSchema = new Schema<IAppointment>(
   {
     patientId: {
       type: Schema.Types.ObjectId,
-      required: [true, 'Patient id is required'],
+      required: [true, 'Hasta kimliği gerekli'],
     },
     doctorId: {
       type: Schema.Types.ObjectId,
       ref: 'Doctor',
-      required: [true, 'Doctor id is required'],
+      required: [true, 'Doktor kimliği gerekli'],
     },
     date: {
       type: Date,
-      required: [true, 'Appointment date is required'],
+      required: [true, 'Randevu tarihi gerekli'],
     },
     status: {
       type: String,

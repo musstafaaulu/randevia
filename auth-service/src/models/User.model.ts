@@ -17,22 +17,22 @@ const userSchema = new Schema<IUser>(
   {
     name: {
       type: String,
-      required: [true, 'Name is required'],
+      required: [true, 'Ad gerekli'],
       trim: true,
       minlength: 2,
       maxlength: 100,
     },
     email: {
       type: String,
-      required: [true, 'Email is required'],
+      required: [true, 'E-posta gerekli'],
       unique: true,
       lowercase: true,
       trim: true,
-      match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Invalid email format'],
+      match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Geçersiz e-posta formatı'],
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
+      required: [true, 'Şifre gerekli'],
       minlength: 8,
       select: false,
     },

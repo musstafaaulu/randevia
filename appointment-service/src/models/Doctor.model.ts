@@ -14,7 +14,7 @@ const doctorSchema = new Schema<IDoctor>(
   {
     userId: {
       type: Schema.Types.ObjectId,
-      required: [true, 'User id is required'],
+      required: [true, 'Kullanıcı kimliği gerekli'],
       unique: true,
     },
     // Denormalized from auth-service's User at profile-save time: this
@@ -22,13 +22,13 @@ const doctorSchema = new Schema<IDoctor>(
     // carries only the user id and role, not a display name.
     name: {
       type: String,
-      required: [true, 'Name is required'],
+      required: [true, 'Ad gerekli'],
       trim: true,
       maxlength: 100,
     },
     specialty: {
       type: String,
-      required: [true, 'Specialty is required'],
+      required: [true, 'Uzmanlık alanı gerekli'],
       trim: true,
       minlength: 2,
       maxlength: 100,

@@ -14,15 +14,15 @@ const availabilitySchema = new Schema<IAvailability>(
     doctorId: {
       type: Schema.Types.ObjectId,
       ref: 'Doctor',
-      required: [true, 'Doctor id is required'],
+      required: [true, 'Doktor kimliği gerekli'],
     },
     startTime: {
       type: Date,
-      required: [true, 'Start time is required'],
+      required: [true, 'Başlangıç zamanı gerekli'],
     },
     endTime: {
       type: Date,
-      required: [true, 'End time is required'],
+      required: [true, 'Bitiş zamanı gerekli'],
     },
   },
   { timestamps: true },
