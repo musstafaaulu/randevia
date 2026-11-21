@@ -68,6 +68,21 @@ services:
       - mongo_notification_data:/data/db
     healthcheck: *mongo-healthcheck
 
+  # Socket.io adapter: lets notification-service scale to more than one
+  # instance while every instance still sees every real-time event.
+  redis:
+    image: redis:7-alpine
+    container_name: randevia-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   # ------------------------------------------------------------- services --
   auth-service:
     <<: *service
@@ -118,15 +133,19 @@ services:
       PORT: 4002
       MONGO_URI: mongodb://mongo-notification:27017/randevia_notification
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET is not set. Copy .env.example to .env and fill it in}
+      REDIS_URL: redis://redis:6379
       RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672
       RABBITMQ_EXCHANGE: randevia.events
       NOTIFICATION_QUEUE: notification-service.appointment-events
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
       TRUST_PROXY: 1
       LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
       mongo-notification:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   api-gateway:
@@ -158,3 +177,4 @@ volumes:
   mongo_auth_data:
   mongo_appointment_data:
   mongo_notification_data:
+  redis_data:
