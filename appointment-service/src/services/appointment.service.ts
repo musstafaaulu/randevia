@@ -1,5 +1,5 @@
+import mongoose from 'mongoose';
 import { AppointmentEventType, buildAppointmentEvent } from '../events/appointment.events';
-import { publishEvent } from '../messaging/eventPublisher';
 import {
   APPOINTMENT_STATUSES,
   Appointment,
@@ -7,6 +7,7 @@ import {
   IAppointment,
 } from '../models/Appointment.model';
 import { Doctor } from '../models/Doctor.model';
+import { OutboxEvent } from '../models/OutboxEvent.model';
 import { ApiError } from '../utils/ApiError';
 import type { Role } from '../types/role';
 import type { CreateAppointmentInput } from '../validations/appointment.validation';
@@ -20,13 +21,20 @@ export interface AppointmentStats {
   dailyCounts: { date: string; count: number }[];
 }
 
-// Fire-and-forget: the request must not wait for, or fail because of, the broker.
-function emitAppointmentEvent(
+// Written in the same transaction as the appointment change it describes
+// (see OutboxEvent.model.ts): the request never talks to RabbitMQ directly
+// any more, so it can never fail or hang because the broker is unreachable,
+// and the event can never be lost between the write succeeding and the
+// message actually being published - outboxPublisher.ts owns that part,
+// asynchronously, for as long as it takes.
+async function recordOutboxEvent(
+  session: mongoose.ClientSession,
   eventType: AppointmentEventType,
   appointment: IAppointment,
   doctorUserId: string,
-): void {
-  void publishEvent(buildAppointmentEvent(eventType, appointment, doctorUserId));
+): Promise<void> {
+  const payload = buildAppointmentEvent(eventType, appointment, doctorUserId);
+  await OutboxEvent.create([{ eventType, payload }], { session });
 }
 
 export async function createAppointment(
@@ -47,16 +55,23 @@ export async function createAppointment(
     throw new ApiError(409, 'Doktorun bu tarih ve saatte zaten bir randevusu var');
   }
 
-  const appointment = await Appointment.create({
-    patientId,
-    doctorId: doctor._id,
-    date: input.date,
-    status: 'pending',
-  });
-
-  emitAppointmentEvent('appointment.created', appointment, doctor.userId.toString());
-
-  return appointment;
+  const session = await mongoose.startSession();
+  try {
+    let appointment!: IAppointment;
+    await session.withTransaction(async () => {
+      const created = await Appointment.create(
+        [{ patientId, doctorId: doctor._id, date: input.date, status: 'pending' }],
+        { session },
+      );
+      const [first] = created;
+      if (!first) throw new Error('Appointment.create returned no document');
+      appointment = first;
+      await recordOutboxEvent(session, 'appointment.created', appointment, doctor.userId.toString());
+    });
+    return appointment;
+  } finally {
+    await session.endSession();
+  }
 }
 
 export async function listMyAppointments(userId: string, role: Role): Promise<IAppointment[]> {
@@ -94,12 +109,17 @@ export async function cancelAppointment(
     throw new ApiError(404, 'Doktor bulunamadı');
   }
 
-  appointment.status = 'cancelled';
-  await appointment.save();
-
-  emitAppointmentEvent('appointment.cancelled', appointment, doctor.userId.toString());
-
-  return appointment;
+  const session = await mongoose.startSession();
+  try {
+    await session.withTransaction(async () => {
+      appointment.status = 'cancelled';
+      await appointment.save({ session });
+      await recordOutboxEvent(session, 'appointment.cancelled', appointment, doctor.userId.toString());
+    });
+    return appointment;
+  } finally {
+    await session.endSession();
+  }
 }
 
 export async function confirmAppointment(
@@ -120,12 +140,17 @@ export async function confirmAppointment(
     throw new ApiError(400, 'Sadece onay bekleyen randevular onaylanabilir');
   }
 
-  appointment.status = 'confirmed';
-  await appointment.save();
-
-  emitAppointmentEvent('appointment.confirmed', appointment, doctor.userId.toString());
-
-  return appointment;
+  const session = await mongoose.startSession();
+  try {
+    await session.withTransaction(async () => {
+      appointment.status = 'confirmed';
+      await appointment.save({ session });
+      await recordOutboxEvent(session, 'appointment.confirmed', appointment, doctor.userId.toString());
+    });
+    return appointment;
+  } finally {
+    await session.endSession();
+  }
 }
 
 export async function getAppointmentStats(): Promise<AppointmentStats> {

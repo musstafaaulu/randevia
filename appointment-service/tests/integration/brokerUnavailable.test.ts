@@ -4,6 +4,7 @@ import app from '../../src/app';
 import { env } from '../../src/config/env';
 import { Appointment } from '../../src/models/Appointment.model';
 import { Doctor } from '../../src/models/Doctor.model';
+import { OutboxEvent } from '../../src/models/OutboxEvent.model';
 import { generateAccessToken, newUserId } from '../utils/token';
 
 // The real publisher is used here but never started, which is exactly the
@@ -15,6 +16,7 @@ beforeAll(async () => {
 afterEach(async () => {
   await Doctor.deleteMany({});
   await Appointment.deleteMany({});
+  await OutboxEvent.deleteMany({});
 });
 
 afterAll(async () => {
@@ -49,6 +51,18 @@ describe('Appointment operations while RabbitMQ is unavailable', () => {
       .patch(`/api/v1/appointments/${appointmentId}/cancel`)
       .set('Authorization', `Bearer ${patientToken}`);
     expect(cancelRes.status).toBe(200);
+
+    // Nothing in this process has ever connected to RabbitMQ (no publisher
+    // started, no outbox tick run), yet all three writes above left their
+    // event safely recorded - this is the whole point of the outbox: an
+    // event isn't "lost" just because nobody has published it yet.
+    const rows = await OutboxEvent.find({}).sort({ createdAt: 1 });
+    expect(rows.map((row) => row.eventType)).toEqual([
+      'appointment.created',
+      'appointment.confirmed',
+      'appointment.cancelled',
+    ]);
+    expect(rows.every((row) => !row.publishedAt)).toBe(true);
   });
 
   it('reports rabbitmq as disconnected in the health check', async () => {

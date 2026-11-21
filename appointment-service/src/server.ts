@@ -2,12 +2,16 @@ import app from './app';
 import { connectDB, disconnectDB } from './config/db';
 import { env } from './config/env';
 import { startEventPublisher, stopEventPublisher } from './messaging/eventPublisher';
+import { startOutboxPublisher, stopOutboxPublisher } from './messaging/outboxPublisher';
 import logger from './utils/logger';
 
 async function start(): Promise<void> {
   await connectDB();
   // Not awaited: the service starts even if RabbitMQ is down and keeps retrying.
   startEventPublisher();
+  // Drains the transactional outbox (see models/OutboxEvent.model.ts); also
+  // tolerant of RabbitMQ being down, since publishEvent() itself is.
+  startOutboxPublisher();
 
   const server = app.listen(env.PORT, () => {
     logger.info(`appointment-service listening on port ${env.PORT} [${env.NODE_ENV}]`);
@@ -15,6 +19,7 @@ async function start(): Promise<void> {
 
   function shutdown(signal: string): void {
     logger.info(`${signal} received, shutting down gracefully`);
+    stopOutboxPublisher();
     server.close(() => {
       void Promise.allSettled([stopEventPublisher(), disconnectDB()]).finally(() => {
         logger.info('HTTP server closed');

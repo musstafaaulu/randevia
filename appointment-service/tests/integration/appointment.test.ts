@@ -2,17 +2,10 @@ import mongoose from 'mongoose';
 import request from 'supertest';
 import app from '../../src/app';
 import { env } from '../../src/config/env';
-import { publishEvent } from '../../src/messaging/eventPublisher';
 import { Appointment } from '../../src/models/Appointment.model';
 import { Doctor } from '../../src/models/Doctor.model';
+import { OutboxEvent } from '../../src/models/OutboxEvent.model';
 import { generateAccessToken, newUserId } from '../utils/token';
-
-jest.mock('../../src/messaging/eventPublisher', () => ({
-  publishEvent: jest.fn().mockResolvedValue(true),
-  isEventPublisherConnected: jest.fn().mockReturnValue(false),
-}));
-
-const publishEventMock = jest.mocked(publishEvent);
 
 beforeAll(async () => {
   await mongoose.connect(env.MONGO_URI);
@@ -21,6 +14,7 @@ beforeAll(async () => {
 afterEach(async () => {
   await Doctor.deleteMany({});
   await Appointment.deleteMany({});
+  await OutboxEvent.deleteMany({});
 });
 
 afterAll(async () => {
@@ -286,7 +280,7 @@ describe('GET /api/v1/appointments/stats', () => {
   });
 });
 
-describe('Appointment events', () => {
+describe('Appointment events (transactional outbox)', () => {
   async function book() {
     const doctor = await createDoctor();
     const patientId = newUserId();
@@ -306,11 +300,18 @@ describe('Appointment events', () => {
     };
   }
 
-  it('publishes appointment.created with the full payload', async () => {
+  // The request path never talks to RabbitMQ (see services/appointment.service.ts);
+  // it only has to leave a correct, unpublished row behind for
+  // outboxPublisher.ts to pick up later - that part is covered separately in
+  // outboxPublisher.test.ts.
+
+  it('records an unpublished appointment.created outbox row with the full payload', async () => {
     const { doctor, patientId, date, appointmentId } = await book();
 
-    expect(publishEventMock).toHaveBeenCalledTimes(1);
-    expect(publishEventMock.mock.calls[0]?.[0]).toEqual({
+    const rows = await OutboxEvent.find({ eventType: 'appointment.created' });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.publishedAt).toBeFalsy();
+    expect(rows[0]?.payload).toEqual({
       eventId: expect.any(String),
       eventType: 'appointment.created',
       occurredAt: expect.any(String),
@@ -323,16 +324,16 @@ describe('Appointment events', () => {
     });
   });
 
-  it('publishes appointment.confirmed when the doctor confirms', async () => {
+  it('records an appointment.confirmed outbox row when the doctor confirms', async () => {
     const { doctor, appointmentId } = await book();
-    publishEventMock.mockClear();
 
     await request(app)
       .patch(`/api/v1/appointments/${appointmentId}/confirm`)
       .set('Authorization', `Bearer ${doctor.token}`);
 
-    expect(publishEventMock).toHaveBeenCalledTimes(1);
-    expect(publishEventMock.mock.calls[0]?.[0]).toMatchObject({
+    const rows = await OutboxEvent.find({ eventType: 'appointment.confirmed' });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.payload).toMatchObject({
       eventType: 'appointment.confirmed',
       appointmentId,
       doctorUserId: doctor.userId,
@@ -340,16 +341,16 @@ describe('Appointment events', () => {
     });
   });
 
-  it('publishes appointment.cancelled when the patient cancels', async () => {
+  it('records an appointment.cancelled outbox row when the patient cancels', async () => {
     const { doctor, patientToken, appointmentId } = await book();
-    publishEventMock.mockClear();
 
     await request(app)
       .patch(`/api/v1/appointments/${appointmentId}/cancel`)
       .set('Authorization', `Bearer ${patientToken}`);
 
-    expect(publishEventMock).toHaveBeenCalledTimes(1);
-    expect(publishEventMock.mock.calls[0]?.[0]).toMatchObject({
+    const rows = await OutboxEvent.find({ eventType: 'appointment.cancelled' });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.payload).toMatchObject({
       eventType: 'appointment.cancelled',
       appointmentId,
       doctorUserId: doctor.userId,
@@ -357,9 +358,9 @@ describe('Appointment events', () => {
     });
   });
 
-  it('does not publish when the operation fails', async () => {
+  it('does not record an outbox row when the operation fails', async () => {
     const { doctor, date } = await book();
-    publishEventMock.mockClear();
+    await OutboxEvent.deleteMany({});
 
     const res = await request(app)
       .post('/api/v1/appointments')
@@ -367,7 +368,7 @@ describe('Appointment events', () => {
       .send({ doctorId: doctor.doctorId, date });
 
     expect(res.status).toBe(409);
-    expect(publishEventMock).not.toHaveBeenCalled();
+    expect(await OutboxEvent.countDocuments()).toBe(0);
   });
 
   it('uses a unique eventId per event', async () => {
@@ -376,7 +377,8 @@ describe('Appointment events', () => {
       .patch(`/api/v1/appointments/${appointmentId}/confirm`)
       .set('Authorization', `Bearer ${doctor.token}`);
 
-    const ids = publishEventMock.mock.calls.map(([event]) => event.eventId);
+    const rows = await OutboxEvent.find({});
+    const ids = rows.map((row) => row.payload.eventId);
     expect(new Set(ids).size).toBe(ids.length);
   });
 });

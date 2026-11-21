@@ -18,14 +18,6 @@ jobs:
           - notification-service
           - api-gateway
     services:
-      mongo:
-        image: mongo:7
-        ports: ['27017:27017']
-        options: >-
-          --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1})'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
       rabbitmq:
         image: rabbitmq:3-management
         ports: ['5672:5672']
@@ -44,6 +36,17 @@ jobs:
           --health-retries 5
     steps:
       - uses: actions/checkout@v4
+
+      # A plain `services:` entry can't run mongod with --replSet (no command
+      # override), but appointment-service's transactional outbox needs
+      # MongoDB transactions, which only work on a replica set - even a
+      # single-node one. Same thing scripts/README tell a local dev to do.
+      - name: Start MongoDB (single-node replica set)
+        run: |
+          docker run -d --name mongo -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all
+          until docker exec mongo mongosh --quiet --eval "db.adminCommand('ping').ok"; do sleep 1; done
+          docker exec mongo mongosh --quiet --eval "rs.initiate({_id:'rs0',members:[{_id:0,host:'127.0.0.1:27017'}]})"
+          until docker exec mongo mongosh --quiet --eval "rs.status().ok" 2>/dev/null; do sleep 1; done
 
       - uses: actions/setup-node@v4
         with:
