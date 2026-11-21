@@ -25,6 +25,22 @@ export function logoutRequest(): Promise<void> {
   return apiRequest('/api/v1/auth/logout', { method: 'POST' });
 }
 
+export function verifyEmail(token: string): Promise<void> {
+  return apiRequest('/api/v1/auth/verify-email', { method: 'POST', body: { token } });
+}
+
+export function resendVerificationEmail(): Promise<void> {
+  return apiRequest('/api/v1/auth/resend-verification', { method: 'POST' });
+}
+
+export function forgotPassword(email: string): Promise<void> {
+  return apiRequest('/api/v1/auth/forgot-password', { method: 'POST', body: { email } });
+}
+
+export function resetPassword(token: string, newPassword: string): Promise<void> {
+  return apiRequest('/api/v1/auth/reset-password', { method: 'POST', body: { token, newPassword } });
+}
+
 export function updateProfile(name: string): Promise<{ user: User }> {
   return apiRequest('/api/v1/auth/me', { method: 'PATCH', body: { name } });
 }

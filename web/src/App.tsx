@@ -9,6 +9,9 @@ import { Spinner } from './components/Spinner';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { VerifyEmailPage } from './pages/VerifyEmailPage';
 import { DoctorsListPage } from './pages/DoctorsListPage';
 import { DoctorDetailPage } from './pages/DoctorDetailPage';
 import { MyAppointmentsPage } from './pages/MyAppointmentsPage';
@@ -31,6 +34,10 @@ function AppRoutes() {
         <Route path="/" element={<HomeRoute />} />
         <Route path="/giris" element={<LoginPage />} />
         <Route path="/kayit" element={<RegisterPage />} />
+        <Route path="/sifremi-unuttum" element={<ForgotPasswordPage />} />
+        {/* These two paths are fixed: auth-service builds e-mail links against them (WEB_BASE_URL). */}
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         <Route element={<ProtectedRoute />}>
           <Route path="/doktorlar" element={<DoctorsListPage />} />

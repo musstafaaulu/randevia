@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { EmailVerificationBanner } from './EmailVerificationBanner';
 import { NotificationBell } from './NotificationBell';
 import { ThemeToggle } from './ThemeToggle';
 import { ToastStack } from './ToastStack';
@@ -74,6 +75,8 @@ export function Layout() {
           </div>
         </div>
       </header>
+
+      <EmailVerificationBanner />
 
       <main className="app-content">
         <Outlet />

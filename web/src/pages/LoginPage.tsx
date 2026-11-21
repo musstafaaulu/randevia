@@ -80,6 +80,10 @@ export function LoginPage() {
             <FieldError message={passwordError} />
           </label>
 
+          <p className="auth-forgot-password">
+            <Link to="/sifremi-unuttum">Şifrenizi mi unuttunuz?</Link>
+          </p>
+
           <button className="primary-button full-width" type="submit" disabled={submitting}>
             {submitting ? 'Giriş yapılıyor…' : 'Giriş Yap'}
           </button>
