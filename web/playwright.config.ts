@@ -11,10 +11,18 @@ export default defineConfig({
   testDir: './e2e',
   timeout: 60_000,
   fullyParallel: false,
+  // One worker process: specs share the admin-token cache in helpers.ts
+  // (each login/register call counts against the gateway's credential rate
+  // limit, so reusing one admin session across every spec file matters) and
+  // a single worker keeps that cache meaningful.
+  workers: 1,
   retries: 0,
   reporter: 'list',
-  // Seeded users/doctors live in the real database (see e2e/helpers.ts);
-  // remove them again once the run finishes, pass or fail.
+  // Resets the gateway/services' in-memory rate limiters before the run
+  // (see global-setup.ts) ...
+  globalSetup: './e2e/global-setup.ts',
+  // ... and, seeded users/doctors living in the real database (see
+  // e2e/helpers.ts), removes them again once the run finishes, pass or fail.
   globalTeardown: './e2e/global-teardown.ts',
   use: {
     baseURL,

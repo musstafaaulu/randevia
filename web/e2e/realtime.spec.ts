@@ -1,14 +1,10 @@
 import { test, expect, type Browser } from '@playwright/test';
-import { seedDoctorWithAvailability, seedPatient } from './helpers';
+import { loginAs, seedDoctorWithAvailability, seedPatient } from './helpers';
 
-async function loginAs(browser: Browser, email: string, password: string) {
+async function newLoggedInSession(browser: Browser, email: string, password: string) {
   const context = await browser.newContext();
   const page = await context.newPage();
-  await page.goto('/giris');
-  await page.getByLabel('E-posta').fill(email);
-  await page.getByLabel('Şifre').fill(password);
-  await page.getByRole('button', { name: 'Giriş Yap' }).click();
-  await page.waitForURL('**/doktorlar');
+  await loginAs(page, email, password);
   return { context, page };
 }
 
@@ -18,8 +14,8 @@ test('patient booking an appointment notifies the doctor live, without a reload'
   const doctor = await seedDoctorWithAvailability();
   const patient = await seedPatient();
 
-  const doctorSession = await loginAs(browser, doctor.email, doctor.password);
-  const patientSession = await loginAs(browser, patient.email, patient.password);
+  const doctorSession = await newLoggedInSession(browser, doctor.email, doctor.password);
+  const patientSession = await newLoggedInSession(browser, patient.email, patient.password);
 
   try {
     // The doctor just sits on the doctors list; the bell in the top nav is
