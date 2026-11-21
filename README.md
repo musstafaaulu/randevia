@@ -1,5 +1,14 @@
 <p align="center"><img src="web/public/logo.svg" alt="Randevia" height="56" /></p>
 
+<p align="center">
+  <a href="https://github.com/musstafaaulu/randevia/actions/workflows/ci.yml"><img src="https://github.com/musstafaaulu/randevia/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <img src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Node.js-22-339933?logo=node.js&logoColor=white" alt="Node.js" />
+  <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black" alt="React" />
+  <img src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white" alt="Docker" />
+  <img src="https://img.shields.io/badge/RabbitMQ-3-FF6600?logo=rabbitmq&logoColor=white" alt="RabbitMQ" />
+</p>
+
 # Randevia
 
 **Randevia**, hastaların doktorlardan randevu alabildiği, doktorların randevularını yönetebildiği ve her iki tarafın da randevu hareketlerinden **anlık (gerçek zamanlı)** olarak haberdar edildiği, **mikroservis mimarisiyle** geliştirilmiş bir sağlık randevu sistemidir.
@@ -42,7 +51,7 @@ Sistem; tek giriş noktası olan bir **API Gateway**, kendi veritabanına sahip 
 - **Gözlemlenebilirlik:** Her isteğe atanan `X-Request-Id` gateway'den servislere taşınır ve tüm loglarda yer alır; yapılandırılmış JSON loglar.
 - **Web arayüzü:** React + TypeScript SPA; Türkçe, mobil uyumlu, yalnızca gateway ile konuşur. Canlı bildirim zili, toast mesajları ve anlık güncellenen doktor müsaitliği içerir.
 - **Tamamen Türkçe:** Arayüz metinleri ve API'nin ürettiği her hata/uyarı mesajı (doğrulama hataları dahil) Türkçe; hata *kodları* ve loglar İngilizce kalır.
-- **Kalite:** TypeScript strict mode, Zod ile girdi ve ortam değişkeni doğrulaması, ESLint + Prettier, 168 backend birim/entegrasyon testi, 34 adımlık REST uçtan uca test ve Socket.io üzerinden iki tarayıcıyla çalışan bir Playwright uçtan uca testi.
+- **Kalite:** TypeScript strict mode, Zod ile girdi ve ortam değişkeni doğrulaması, ESLint + Prettier, 183 backend birim/entegrasyon testi, 27 web bileşen testi (Vitest), 34 adımlık REST uçtan uca test, Socket.io üzerinden iki tarayıcıyla çalışan bir Playwright uçtan uca testi ve her push'ta çalışan bir GitHub Actions CI hattı.
 
 ---
 
@@ -158,9 +167,9 @@ Her servis aynı iskeleti paylaşır: ortam değişkeni doğrulama (Zod), winsto
 | Doğrulama | Zod 4 (istek gövdesi, parametreler, query ve ortam değişkenleri) |
 | Loglama | winston (JSON), morgan |
 | Web arayüzü | React 19, TypeScript, Vite, React Router, socket.io-client, nginx (üretim imajı) |
-| Test | Jest 30, ts-jest, Supertest, socket.io-client (entegrasyon), Playwright (uçtan uca) |
+| Test | Jest 30, ts-jest, Supertest, socket.io-client (entegrasyon), Vitest + Testing Library (web bileşen testleri), Playwright (uçtan uca) |
 | Kod kalitesi | ESLint 10 (typescript-eslint), Prettier, oxlint (web) |
-| Altyapı | Docker (multi-stage build), Docker Compose |
+| Altyapı | Docker (multi-stage build), Docker Compose, GitHub Actions (CI) |
 
 ---
 
@@ -413,15 +422,19 @@ Her servis, gerçek MongoDB ve RabbitMQ'ya karşı çalışan entegrasyon testle
 
 | Servis | Test sayısı | Kapsanan başlıca senaryolar |
 |---|---:|---|
-| auth-service | **41** ✅ | Kayıt, giriş, refresh (cookie ve gövde), `/me`, doktor rolüyle kendi kendine kayıt reddi, admin rol atama ve listeleme, yetkisiz erişim (401/403), admin'in kendi rolünü değiştirememesi, admin bootstrap ve şifre rotasyonu, production'da zayıf secret reddi, validate middleware (Express 5 `req.query`) |
-| appointment-service | **49** ✅ | Doktor profili (adıyla birlikte) ve müsaitlik, randevu oluşturma, çakışma (409), onay/iptal kuralları, rol kısıtları, olay yayınlama, dolu saatlerin (`bookedSlots`) yalnızca pending/confirmed randevulardan gelmesi, RabbitMQ kapalıyken iş akışının sürmesi, yeniden bağlanma, ortam değişkeni doğrulaması, validate middleware |
+| auth-service | **50** ✅ | Kayıt, giriş, refresh (cookie ve gövde), `/me`, profil adı güncelleme, şifre değiştirme (mevcut şifre doğrulamalı), doktor rolüyle kendi kendine kayıt reddi, admin rol atama ve listeleme, kullanıcı istatistikleri (`/users/stats`), yetkisiz erişim (401/403), admin'in kendi rolünü değiştirememesi, admin bootstrap ve şifre rotasyonu, production'da zayıf secret reddi, validate middleware (Express 5 `req.query`) |
+| appointment-service | **55** ✅ | Doktor profili (adıyla birlikte) ve müsaitlik ekleme/silme, randevu oluşturma, çakışma (409), onay/iptal kuralları, rol kısıtları, olay yayınlama, dolu saatlerin (`bookedSlots`) yalnızca pending/confirmed randevulardan gelmesi, randevu istatistikleri (durum dağılımı + 14 günlük trend, UTC'de), RabbitMQ kapalıyken iş akışının sürmesi, yeniden bağlanma, ortam değişkeni doğrulaması, validate middleware |
 | notification-service | **50** ✅ | Olaydan bildirim üretimi, şablonlar, ack/nack kararları, gecikmeli retry, deneme hakkı bitince DLQ, bozuk mesajın DLQ'ya gitmesi, idempotency, sayfalama, okundu işaretleme (tekil/toplu, başkasının bildirimini okuyamama), **Socket.io**: yetkisiz/geçersiz token reddi, doğru kullanıcıya doğru `notification` olayı ve unread count, başkasına sızmaması, `doctor:watch` ile `slot.updated` yayını, ortam değişkeni doğrulaması |
 | api-gateway | **28** ✅ | Yönlendirme ve yol koruma, gövde/başlık/cookie aktarımı, request id üretme/taşıma/temizleme, helmet, CORS (liste, `*`, preflight, upstream başlıklarının ezilmesi), genel ve giriş limitleri (429), 502/504, sağlık kontrolleri, **gerçek bir Socket.io el sıkışmasının ve mesajının websocket upgrade üzerinden notification-service'e iletilmesi** |
-| **Toplam** | **168** ✅ | |
+| **Toplam** | **183** ✅ | |
 
-**Uçtan uca test** (`scripts/e2e.mjs`, `docker compose up` ile ayağa kalkan gerçek sisteme karşı, yalnızca gateway üzerinden): **34/34 kontrol başarılı** ✅ — sağlık, request id, güvenlik başlıkları, rate limit başlıkları, kayıt, rol atama, doktor profili ve müsaitlik, randevu alma, çift rezervasyon engeli, onay, iptal, RabbitMQ üzerinden hasta ve doktora iletilen bildirimler, sayfalama ve kuyruk topolojisi.
+**Uçtan uca test** (`scripts/e2e.mjs`, `docker compose up` ile ayağa kalkan gerçek sisteme karşı, yalnızca gateway üzerinden): **34/34 kontrol başarılı** ✅ — sağlık, request id, güvenlik başlıkları, rate limit başlıkları, kayıt, rol atama, doktor profili ve müsaitlik, randevu alma, çift rezervasyon engeli, onay, iptal, RabbitMQ üzerinden hasta ve doktora iletilen bildirimler, sayfalama ve kuyruk topolojisi. Her koşu, kendi oluşturduğu test verisini sonunda otomatik temizler (`scripts/clean-test-data.mjs`).
+
+**Web birim/bileşen testleri** ([`web/vitest.config.ts`](web/vitest.config.ts), Vitest + Testing Library, `npm test`): **27/27** ✅ — `avatarColor`/`isValidEmail` gibi saf mantık, `FieldError`/`EmptyState`/`ConfirmDialog`/`ThemeToggle` bileşenleri, ve API'si mock'lanmış `DoctorsListPage` (listeleme, arama, uzmanlık filtresi, boş durum, hata durumu).
 
 **Web arayüzü uçtan uca testi** ([`web/e2e/realtime.spec.ts`](web/e2e/realtime.spec.ts), Playwright, gerçek `docker compose` sistemine karşı): iki ayrı tarayıcı bağlamı açar (hasta ve doktor), hasta gerçek arayüz üzerinden bir doktora randevu alır ve doktorun ekranında **sayfa hiç yenilenmeden** bildirim zilinin, okunmamış sayısının ve toast mesajının anlık olarak belirdiğini doğrular — bkz. [`web/e2e/README.md`](web/e2e/README.md).
+
+**CI (GitHub Actions, [`.github/workflows/ci.yml`](.github/workflows/ci.yml)):** her push ve pull request'te dört backend servisi (Mongo + RabbitMQ + Redis servis konteynerleriyle) ve web için lint, tip kontrolü/derleme ve testler çalışır; ayrıca beş Dockerfile'ın da hâlâ build olduğu ayrıca doğrulanır.
 
 Canlı sistem üzerinde ayrıca elle doğrulanan senaryolar:
 
@@ -526,6 +539,7 @@ Doktor detay sayfasındaki "müsait saatler" listesi, müsaitlik aralıklarında
 
 ```
 randevia/
+├── .github/workflows/ci.yml # Her push/PR'da lint + tip kontrolü + test + docker build
 ├── api-gateway/            # Tek giriş noktası (port 3000), HTTP + WS proxy
 ├── auth-service/           # Kimlik doğrulama ve roller (port 4000)
 ├── appointment-service/    # Doktorlar ve randevular (port 4001)
@@ -535,7 +549,7 @@ randevia/
 ├── scripts/
 │   ├── e2e.mjs             # Uçtan uca REST testi
 │   ├── seed-demo.mjs       # Demo hesapları ve örnek veri
-│   └── clean-test-data.mjs # @randevia.local dışındaki test verisini temizler
+│   └── clean-test-data.mjs # @e2e.test test verisini temizler
 ├── docker-compose.yml      # Tüm sistem: 5 servis + 3 MongoDB + RabbitMQ + Redis
 └── .env.example            # docker compose ayarları
 ```
