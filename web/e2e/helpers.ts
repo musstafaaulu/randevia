@@ -7,6 +7,7 @@ import type { Page } from '@playwright/test';
 import { resetRateLimitedServices } from './resetRateLimits';
 
 const GATEWAY_URL = 'http://localhost:3000';
+const MAILHOG_URL = 'http://localhost:8025';
 
 // Logging in through the real UI also goes through the gateway's credential
 // rate limit (see resetRateLimits.ts); if several spec files in one run
@@ -108,6 +109,62 @@ async function getAdminToken(): Promise<string> {
   });
   cachedAdminToken = adminLogin.data.accessToken as string;
   return cachedAdminToken;
+}
+
+// Proof that the real send-through-MailHog pipeline (auth-service -> SMTP ->
+// MailHog) delivered a mail, not a mock: pollMailIdsTo snapshots which mails
+// already exist for an address before triggering some action, then
+// waitForNewMailLink polls MailHog's own JSON API (http://localhost:8025)
+// until a mail not in that snapshot shows up, and pulls the link out of its
+// HTML body. Comparing ids (not just "the newest one") sidesteps ever having
+// to assume what order MailHog's search returns results in.
+export async function mailIdsTo(to: string): Promise<Set<string>> {
+  const res = await fetch(`${MAILHOG_URL}/api/v2/search?kind=to&query=${encodeURIComponent(to)}`);
+  const data = (await res.json()) as { items: { ID: string }[] };
+  return new Set(data.items.map((item) => item.ID));
+}
+
+// nodemailer sends these HTML bodies as quoted-printable: every literal "="
+// becomes "=3D" (and non-ASCII characters become their own "=XX" escapes),
+// so a plain substring match for `href="` never finds anything - it has to
+// be decoded first.
+function decodeQuotedPrintable(input: string): string {
+  const withoutSoftBreaks = input.replace(/=\r?\n/g, '');
+  const bytes: number[] = [];
+  for (let i = 0; i < withoutSoftBreaks.length; i++) {
+    const hex = withoutSoftBreaks.slice(i + 1, i + 3);
+    if (withoutSoftBreaks[i] === '=' && /^[0-9A-Fa-f]{2}$/.test(hex)) {
+      bytes.push(parseInt(hex, 16));
+      i += 2;
+    } else {
+      bytes.push(withoutSoftBreaks.charCodeAt(i));
+    }
+  }
+  return Buffer.from(bytes).toString('utf8');
+}
+
+// `linkContains` matters because a freshly registered patient also gets a
+// verification e-mail (see auth.service.ts): without it, a slow reset mail
+// could lose the race and this would return the wrong link.
+export async function waitForNewMailLink(
+  to: string,
+  before: Set<string>,
+  { linkContains, timeoutMs = 10_000 }: { linkContains?: string; timeoutMs?: number } = {},
+): Promise<string> {
+  const seen = new Set(before);
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const res = await fetch(`${MAILHOG_URL}/api/v2/search?kind=to&query=${encodeURIComponent(to)}`);
+    const data = (await res.json()) as { items: { ID: string; Content: { Body: string } }[] };
+    for (const item of data.items) {
+      if (seen.has(item.ID)) continue;
+      seen.add(item.ID);
+      const link = /href="([^"]+)"/.exec(decodeQuotedPrintable(item.Content.Body))?.[1];
+      if (link && (!linkContains || link.includes(linkContains))) return link;
+    }
+    if (Date.now() > deadline) throw new Error(`No matching new mail arrived for ${to}`);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
 }
 
 export async function seedDoctorWithAvailability(
