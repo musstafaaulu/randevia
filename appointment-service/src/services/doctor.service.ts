@@ -70,3 +70,18 @@ export async function addAvailability(
     endTime: input.endTime,
   });
 }
+
+export async function deleteAvailability(userId: string, availabilityId: string): Promise<void> {
+  const doctor = await Doctor.findOne({ userId });
+  if (!doctor) {
+    throw new ApiError(404, 'Doktor profili bulunamadı');
+  }
+
+  const deleted = await Availability.findOneAndDelete({
+    _id: availabilityId,
+    doctorId: doctor._id,
+  });
+  if (!deleted) {
+    throw new ApiError(404, 'Müsaitlik bulunamadı');
+  }
+}

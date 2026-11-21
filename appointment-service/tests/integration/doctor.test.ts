@@ -227,3 +227,80 @@ describe('POST /api/v1/doctors/me/availability', () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe('DELETE /api/v1/doctors/me/availability/:id', () => {
+  it('deletes its own availability slot', async () => {
+    const token = generateAccessToken(newUserId(), 'doctor');
+    await request(app)
+      .post('/api/v1/doctors/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'Dr. Test', specialty: 'ENT' });
+
+    const start = new Date(Date.now() + 60 * 60 * 1000);
+    const end = new Date(start.getTime() + 30 * 60 * 1000);
+    const created = await request(app)
+      .post('/api/v1/doctors/me/availability')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ startTime: start.toISOString(), endTime: end.toISOString() });
+    const availabilityId = created.body.data.availability._id as string;
+
+    const res = await request(app)
+      .delete(`/api/v1/doctors/me/availability/${availabilityId}`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(await Availability.findById(availabilityId)).toBeNull();
+  });
+
+  it("rejects deleting another doctor's availability", async () => {
+    const ownerToken = generateAccessToken(newUserId(), 'doctor');
+    await request(app)
+      .post('/api/v1/doctors/me')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ name: 'Dr. Owner', specialty: 'ENT' });
+
+    const start = new Date(Date.now() + 60 * 60 * 1000);
+    const end = new Date(start.getTime() + 30 * 60 * 1000);
+    const created = await request(app)
+      .post('/api/v1/doctors/me/availability')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ startTime: start.toISOString(), endTime: end.toISOString() });
+    const availabilityId = created.body.data.availability._id as string;
+
+    const otherToken = generateAccessToken(newUserId(), 'doctor');
+    await request(app)
+      .post('/api/v1/doctors/me')
+      .set('Authorization', `Bearer ${otherToken}`)
+      .send({ name: 'Dr. Other', specialty: 'Dermatology' });
+
+    const res = await request(app)
+      .delete(`/api/v1/doctors/me/availability/${availabilityId}`)
+      .set('Authorization', `Bearer ${otherToken}`);
+
+    expect(res.status).toBe(404);
+    expect(await Availability.findById(availabilityId)).not.toBeNull();
+  });
+
+  it('returns 404 for a nonexistent availability id', async () => {
+    const token = generateAccessToken(newUserId(), 'doctor');
+    await request(app)
+      .post('/api/v1/doctors/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'Dr. Test', specialty: 'ENT' });
+
+    const res = await request(app)
+      .delete(`/api/v1/doctors/me/availability/${newUserId()}`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it('rejects patients from deleting availability', async () => {
+    const token = generateAccessToken(newUserId(), 'patient');
+    const res = await request(app)
+      .delete(`/api/v1/doctors/me/availability/${newUserId()}`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(403);
+  });
+});

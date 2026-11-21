@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   addAvailabilityHandler,
+  deleteAvailabilityHandler,
   getDoctorHandler,
   listDoctorsHandler,
   upsertDoctorProfileHandler,
@@ -10,6 +11,7 @@ import { authorize } from '../middlewares/authorize';
 import { validate } from '../middlewares/validate';
 import {
   addAvailabilitySchema,
+  availabilityIdParamSchema,
   doctorIdParamSchema,
   upsertDoctorProfileSchema,
 } from '../validations/doctor.validation';
@@ -30,6 +32,13 @@ router.post(
   authorize('doctor'),
   validate({ body: addAvailabilitySchema }),
   addAvailabilityHandler,
+);
+router.delete(
+  '/me/availability/:id',
+  authenticate,
+  authorize('doctor'),
+  validate({ params: availabilityIdParamSchema }),
+  deleteAvailabilityHandler,
 );
 router.get('/:id', authenticate, validate({ params: doctorIdParamSchema }), getDoctorHandler);
 

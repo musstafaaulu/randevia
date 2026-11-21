@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import * as doctorService from '../services/doctor.service';
 import type {
   AddAvailabilityInput,
+  AvailabilityIdParam,
   DoctorIdParam,
   UpsertDoctorProfileInput,
 } from '../validations/doctor.validation';
@@ -33,4 +34,11 @@ export async function addAvailabilityHandler(req: Request, res: Response): Promi
     req.body as AddAvailabilityInput,
   );
   res.status(201).json({ success: true, message: 'Müsaitlik eklendi', data: { availability } });
+}
+
+export async function deleteAvailabilityHandler(req: Request, res: Response): Promise<void> {
+  const userId = req.user!.id;
+  const { id } = req.params as unknown as AvailabilityIdParam;
+  await doctorService.deleteAvailability(userId, id);
+  res.status(200).json({ success: true, message: 'Müsaitlik silindi' });
 }

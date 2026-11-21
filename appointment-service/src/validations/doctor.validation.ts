@@ -21,6 +21,11 @@ export const doctorIdParamSchema = z.object({
   id: zObjectId,
 });
 
+export const availabilityIdParamSchema = z.object({
+  id: zObjectId,
+});
+
 export type UpsertDoctorProfileInput = z.infer<typeof upsertDoctorProfileSchema>;
 export type AddAvailabilityInput = z.infer<typeof addAvailabilitySchema>;
 export type DoctorIdParam = z.infer<typeof doctorIdParamSchema>;
+export type AvailabilityIdParam = z.infer<typeof availabilityIdParamSchema>;

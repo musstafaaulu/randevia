@@ -25,3 +25,7 @@ export function addMyAvailability(input: {
 }): Promise<{ availability: Availability }> {
   return apiRequest('/api/v1/doctors/me/availability', { method: 'POST', body: input });
 }
+
+export function deleteMyAvailability(id: string): Promise<void> {
+  return apiRequest(`/api/v1/doctors/me/availability/${id}`, { method: 'DELETE' });
+}

@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { confirmAppointment, listMyAppointments } from '../api/appointments';
 import { ApiError } from '../api/client';
-import { addMyAvailability, getDoctor, listDoctors, upsertMyDoctorProfile } from '../api/doctors';
+import {
+  addMyAvailability,
+  deleteMyAvailability,
+  getDoctor,
+  listDoctors,
+  upsertMyDoctorProfile,
+} from '../api/doctors';
 import { useAuth } from '../auth/AuthContext';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { EmptyState } from '../components/EmptyState';
@@ -32,6 +38,8 @@ export function DoctorPanelPage() {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmTarget, setConfirmTarget] = useState<Appointment | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Availability | null>(null);
+  const [deletingAvailability, setDeletingAvailability] = useState(false);
 
   // There is no "my profile" endpoint; the doctor list already carries
   // userId, and /auth/me's id is the same value a doctor's own profile was
@@ -99,6 +107,21 @@ export function DoctorPanelPage() {
       await refresh();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Müsaitlik eklenemedi.');
+    }
+  }
+
+  async function handleDeleteAvailability() {
+    if (!deleteTarget) return;
+    setDeletingAvailability(true);
+    try {
+      await deleteMyAvailability(deleteTarget._id);
+      setDeleteTarget(null);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Müsaitlik silinemedi.');
+      setDeleteTarget(null);
+    } finally {
+      setDeletingAvailability(false);
     }
   }
 
@@ -221,13 +244,37 @@ export function DoctorPanelPage() {
             {availability.length > 0 && (
               <ul className="availability-list">
                 {availability.map((slot) => (
-                  <li key={slot._id}>{formatRange(slot.startTime, slot.endTime)}</li>
+                  <li key={slot._id} className="availability-item">
+                    <span>{formatRange(slot.startTime, slot.endTime)}</span>
+                    <button
+                      className="link-button danger-link"
+                      onClick={() => setDeleteTarget(slot)}
+                      aria-label="Müsaitliği sil"
+                    >
+                      Sil
+                    </button>
+                  </li>
                 ))}
               </ul>
             )}
           </>
         )}
       </section>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Müsaitliği sil"
+        message={
+          deleteTarget
+            ? `${formatRange(deleteTarget.startTime, deleteTarget.endTime)} aralığındaki müsaitliği silmek istediğinize emin misiniz?`
+            : ''
+        }
+        confirmLabel="Evet, sil"
+        danger
+        busy={deletingAvailability}
+        onConfirm={handleDeleteAvailability}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }
