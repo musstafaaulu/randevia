@@ -1,9 +1,14 @@
 import { Request, Response } from 'express';
 import { User } from '../models/User.model';
-import { login, refresh, register } from '../services/auth.service';
+import { changePassword, login, refresh, register, updateProfile } from '../services/auth.service';
 import { ApiError } from '../utils/ApiError';
 import { REFRESH_TOKEN_COOKIE, setRefreshTokenCookie } from '../utils/cookies';
-import type { LoginInput, RegisterInput } from '../validations/auth.validation';
+import type {
+  ChangePasswordInput,
+  LoginInput,
+  RegisterInput,
+  UpdateProfileInput,
+} from '../validations/auth.validation';
 
 export async function registerHandler(req: Request, res: Response): Promise<void> {
   const { user, tokens } = await register(req.body as RegisterInput);
@@ -58,4 +63,14 @@ export async function meHandler(req: Request, res: Response): Promise<void> {
   }
 
   res.status(200).json({ success: true, data: { user } });
+}
+
+export async function updateProfileHandler(req: Request, res: Response): Promise<void> {
+  const user = await updateProfile(req.user!.id, req.body as UpdateProfileInput);
+  res.status(200).json({ success: true, message: 'Profil güncellendi', data: { user } });
+}
+
+export async function changePasswordHandler(req: Request, res: Response): Promise<void> {
+  await changePassword(req.user!.id, req.body as ChangePasswordInput);
+  res.status(200).json({ success: true, message: 'Şifre güncellendi' });
 }

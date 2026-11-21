@@ -170,3 +170,100 @@ describe('GET /api/v1/auth/me', () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe('PATCH /api/v1/auth/me', () => {
+  it('updates the authenticated user name', async () => {
+    const registerRes = await request(app).post('/api/v1/auth/register').send(baseUser);
+    const { accessToken } = registerRes.body.data;
+
+    const res = await request(app)
+      .patch('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ name: 'Ada Byron' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.user.name).toBe('Ada Byron');
+
+    const me = await request(app)
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${accessToken}`);
+    expect(me.body.data.user.name).toBe('Ada Byron');
+  });
+
+  it('rejects a name shorter than 2 characters', async () => {
+    const registerRes = await request(app).post('/api/v1/auth/register').send(baseUser);
+    const { accessToken } = registerRes.body.data;
+
+    const res = await request(app)
+      .patch('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ name: 'A' });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects requests without a token', async () => {
+    const res = await request(app).patch('/api/v1/auth/me').send({ name: 'Nobody' });
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('PATCH /api/v1/auth/me/password', () => {
+  it('changes the password when the current password is correct', async () => {
+    const registerRes = await request(app).post('/api/v1/auth/register').send(baseUser);
+    const { accessToken } = registerRes.body.data;
+
+    const res = await request(app)
+      .patch('/api/v1/auth/me/password')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ currentPassword: baseUser.password, newPassword: 'brand-new-password' });
+
+    expect(res.status).toBe(200);
+
+    const oldLogin = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: baseUser.email, password: baseUser.password });
+    expect(oldLogin.status).toBe(401);
+
+    const newLogin = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: baseUser.email, password: 'brand-new-password' });
+    expect(newLogin.status).toBe(200);
+  });
+
+  it('rejects an incorrect current password', async () => {
+    const registerRes = await request(app).post('/api/v1/auth/register').send(baseUser);
+    const { accessToken } = registerRes.body.data;
+
+    const res = await request(app)
+      .patch('/api/v1/auth/me/password')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ currentPassword: 'totally-wrong', newPassword: 'brand-new-password' });
+
+    expect(res.status).toBe(401);
+
+    const stillOldLogin = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: baseUser.email, password: baseUser.password });
+    expect(stillOldLogin.status).toBe(200);
+  });
+
+  it('rejects a new password shorter than 8 characters', async () => {
+    const registerRes = await request(app).post('/api/v1/auth/register').send(baseUser);
+    const { accessToken } = registerRes.body.data;
+
+    const res = await request(app)
+      .patch('/api/v1/auth/me/password')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ currentPassword: baseUser.password, newPassword: 'short' });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects requests without a token', async () => {
+    const res = await request(app)
+      .patch('/api/v1/auth/me/password')
+      .send({ currentPassword: baseUser.password, newPassword: 'brand-new-password' });
+    expect(res.status).toBe(401);
+  });
+});

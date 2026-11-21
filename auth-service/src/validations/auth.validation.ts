@@ -17,6 +17,17 @@ export const refreshSchema = z.object({
   refreshToken: z.string().min(1).optional(),
 });
 
+export const updateProfileSchema = z.object({
+  name: z.string().trim().min(2, 'Ad en az 2 karakter olmalı').max(100),
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Mevcut şifre gerekli'),
+  newPassword: z.string().min(8, 'Yeni şifre en az 8 karakter olmalı').max(72),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RefreshInput = z.infer<typeof refreshSchema>;
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

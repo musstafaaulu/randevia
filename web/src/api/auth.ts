@@ -18,6 +18,17 @@ export function fetchMe(): Promise<{ user: User }> {
   return apiRequest('/api/v1/auth/me');
 }
 
+export function updateProfile(name: string): Promise<{ user: User }> {
+  return apiRequest('/api/v1/auth/me', { method: 'PATCH', body: { name } });
+}
+
+export function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  return apiRequest('/api/v1/auth/me/password', {
+    method: 'PATCH',
+    body: { currentPassword, newPassword },
+  });
+}
+
 export function listUsers(params: {
   role?: Role;
   page?: number;

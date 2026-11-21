@@ -13,6 +13,7 @@ import { DoctorDetailPage } from './pages/DoctorDetailPage';
 import { MyAppointmentsPage } from './pages/MyAppointmentsPage';
 import { DoctorPanelPage } from './pages/DoctorPanelPage';
 import { AdminPanelPage } from './pages/AdminPanelPage';
+import { ProfilePage } from './pages/ProfilePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 function HomeRoute() {
@@ -33,6 +34,7 @@ function AppRoutes() {
         <Route element={<ProtectedRoute />}>
           <Route path="/doktorlar" element={<DoctorsListPage />} />
           <Route path="/doktorlar/:id" element={<DoctorDetailPage />} />
+          <Route path="/profilim" element={<ProfilePage />} />
         </Route>
 
         <Route element={<ProtectedRoute roles={['patient', 'doctor']} />}>

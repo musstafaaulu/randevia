@@ -52,7 +52,9 @@ export function Layout() {
             {user ? (
               <>
                 <NotificationBell />
-                <span className="user-chip">{user.name}</span>
+                <Link to="/profilim" className="user-chip" onClick={() => setMenuOpen(false)}>
+                  {user.name}
+                </Link>
                 <button className="secondary-button" onClick={logout}>
                   Çıkış
                 </button>
