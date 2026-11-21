@@ -29,14 +29,6 @@ describe('environment validation', () => {
       loadEnv({
         NODE_ENV: 'production',
         JWT_ACCESS_SECRET: 'changeme-secret',
-        JWT_REFRESH_SECRET: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-      }),
-    ).toThrow('process.exit(1)');
-    expect(() =>
-      loadEnv({
-        NODE_ENV: 'production',
-        JWT_ACCESS_SECRET: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-        JWT_REFRESH_SECRET: 'changeme-secret',
       }),
     ).toThrow('process.exit(1)');
   });
@@ -45,7 +37,6 @@ describe('environment validation', () => {
     const loaded = loadEnv({
       NODE_ENV: 'production',
       JWT_ACCESS_SECRET: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-      JWT_REFRESH_SECRET: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
     });
 
     expect(loaded.NODE_ENV).toBe('production');
@@ -55,7 +46,6 @@ describe('environment validation', () => {
     const loaded = loadEnv({
       NODE_ENV: 'test',
       JWT_ACCESS_SECRET: 'short',
-      JWT_REFRESH_SECRET: 'short',
     });
 
     expect(loaded.JWT_ACCESS_SECRET).toBe('short');

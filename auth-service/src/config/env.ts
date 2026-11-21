@@ -8,7 +8,6 @@ const baseSchema = z.object({
   PORT: z.coerce.number().int().positive().default(4000),
   MONGO_URI: z.string().min(1, 'MONGO_URI is required'),
   JWT_ACCESS_SECRET: z.string().min(1, 'JWT_ACCESS_SECRET is required'),
-  JWT_REFRESH_SECRET: z.string().min(1, 'JWT_REFRESH_SECRET is required'),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
   RABBITMQ_URL: z.string().default('amqp://localhost:5672'),
@@ -27,7 +26,7 @@ const baseSchema = z.object({
 // Placeholder secrets like "changeme" must never reach production: anyone who
 // knows a JWT secret can forge tokens for any user and role.
 const MIN_PRODUCTION_SECRET_LENGTH = 32;
-const PRODUCTION_SECRETS = ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'] as const;
+const PRODUCTION_SECRETS = ['JWT_ACCESS_SECRET'] as const;
 
 const envSchema = baseSchema.superRefine((config, ctx) => {
   if (config.NODE_ENV !== 'production') return;
