@@ -13,6 +13,12 @@ beforeAll(async () => {
   await Notification.syncIndexes();
 });
 
+beforeEach(() => {
+  // Default for every test below except "processAppointmentEvent", which
+  // sets its own, more specific mock per test.
+  jest.spyOn(sender, 'sendNotification').mockResolvedValue(undefined);
+});
+
 afterEach(async () => {
   await Notification.deleteMany({});
   jest.restoreAllMocks();
@@ -24,7 +30,7 @@ afterAll(async () => {
 
 describe('processAppointmentEvent', () => {
   it('stores and delivers one notification for the patient and one for the doctor', async () => {
-    const sendSpy = jest.spyOn(sender, 'sendNotification');
+    const sendSpy = jest.spyOn(sender, 'sendNotification').mockResolvedValue(undefined);
     const event = makeEvent();
 
     const result = await processAppointmentEvent(event);
@@ -46,7 +52,7 @@ describe('processAppointmentEvent', () => {
   });
 
   it('is idempotent when the same event is delivered twice', async () => {
-    const sendSpy = jest.spyOn(sender, 'sendNotification');
+    const sendSpy = jest.spyOn(sender, 'sendNotification').mockResolvedValue(undefined);
     const event = makeEvent();
 
     await processAppointmentEvent(event);
@@ -59,7 +65,10 @@ describe('processAppointmentEvent', () => {
 
   it('finishes delivery on redelivery after a failure mid-way', async () => {
     const event = makeEvent();
-    jest.spyOn(sender, 'sendNotification').mockRejectedValueOnce(new Error('smtp down'));
+    jest
+      .spyOn(sender, 'sendNotification')
+      .mockRejectedValueOnce(new Error('smtp down'))
+      .mockResolvedValue(undefined);
 
     await expect(processAppointmentEvent(event)).rejects.toThrow('smtp down');
     expect(await Notification.countDocuments({ eventId: event.eventId, status: 'pending' })).toBe(

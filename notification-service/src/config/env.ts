@@ -19,12 +19,20 @@ const baseSchema = z.object({
   // req.ip and the rate limiter use the client IP from X-Forwarded-For.
   TRUST_PROXY: z.coerce.number().int().min(0).default(0),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'debug']).default('info'),
+  // Mail delivery for appointment notifications (MailHog in development).
+  SMTP_HOST: z.string().default('localhost'),
+  SMTP_PORT: z.coerce.number().int().positive().default(1025),
+  SMTP_FROM: z.string().default('Randevia <no-reply@randevia.local>'),
+  // auth-service's internal endpoint for resolving a recipient's e-mail
+  // address, and the shared secret that guards it.
+  AUTH_SERVICE_URL: z.string().default('http://localhost:4000'),
+  INTERNAL_SERVICE_TOKEN: z.string().min(1, 'INTERNAL_SERVICE_TOKEN is required'),
 });
 
 // Placeholder secrets like "changeme" must never reach production: anyone who
 // knows a JWT secret can forge tokens for any user and role.
 const MIN_PRODUCTION_SECRET_LENGTH = 32;
-const PRODUCTION_SECRETS = ['JWT_ACCESS_SECRET'] as const;
+const PRODUCTION_SECRETS = ['JWT_ACCESS_SECRET', 'INTERNAL_SERVICE_TOKEN'] as const;
 
 const envSchema = baseSchema.superRefine((config, ctx) => {
   if (config.NODE_ENV !== 'production') return;

@@ -29,14 +29,26 @@ describe('environment validation', () => {
       loadEnv({
         NODE_ENV: 'production',
         JWT_ACCESS_SECRET: 'changeme-secret',
+        INTERNAL_SERVICE_TOKEN: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
       }),
     ).toThrow('process.exit(1)');
   });
 
-  it('accepts long JWT secrets in production', () => {
+  it('refuses to start in production with a short internal service token', () => {
+    expect(() =>
+      loadEnv({
+        NODE_ENV: 'production',
+        JWT_ACCESS_SECRET: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+        INTERNAL_SERVICE_TOKEN: 'too-short',
+      }),
+    ).toThrow('process.exit(1)');
+  });
+
+  it('accepts long secrets in production', () => {
     const loaded = loadEnv({
       NODE_ENV: 'production',
       JWT_ACCESS_SECRET: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+      INTERNAL_SERVICE_TOKEN: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
     });
 
     expect(loaded.NODE_ENV).toBe('production');

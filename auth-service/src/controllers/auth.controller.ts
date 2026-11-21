@@ -6,15 +6,22 @@ import {
   logout,
   refresh,
   register,
+  requestPasswordReset,
+  resendVerificationEmail,
+  resetPassword,
   updateProfile,
+  verifyEmail,
 } from '../services/auth.service';
 import { ApiError } from '../utils/ApiError';
 import { clearRefreshTokenCookie, REFRESH_TOKEN_COOKIE, setRefreshTokenCookie } from '../utils/cookies';
 import type {
   ChangePasswordInput,
+  ForgotPasswordInput,
   LoginInput,
   RegisterInput,
+  ResetPasswordInput,
   UpdateProfileInput,
+  VerifyEmailInput,
 } from '../validations/auth.validation';
 
 export async function registerHandler(req: Request, res: Response): Promise<void> {
@@ -90,4 +97,28 @@ export async function updateProfileHandler(req: Request, res: Response): Promise
 export async function changePasswordHandler(req: Request, res: Response): Promise<void> {
   await changePassword(req.user!.id, req.body as ChangePasswordInput);
   res.status(200).json({ success: true, message: 'Şifre güncellendi' });
+}
+
+export async function verifyEmailHandler(req: Request, res: Response): Promise<void> {
+  const { token } = req.body as VerifyEmailInput;
+  await verifyEmail(token);
+  res.status(200).json({ success: true, message: 'E-posta adresiniz doğrulandı' });
+}
+
+export async function resendVerificationHandler(req: Request, res: Response): Promise<void> {
+  await resendVerificationEmail(req.user!.id);
+  res.status(200).json({ success: true, message: 'Doğrulama e-postası yeniden gönderildi' });
+}
+
+export async function forgotPasswordHandler(req: Request, res: Response): Promise<void> {
+  await requestPasswordReset(req.body as ForgotPasswordInput);
+  res.status(200).json({
+    success: true,
+    message: 'E-posta adresiniz sistemde kayıtlıysa şifre sıfırlama bağlantısı gönderildi',
+  });
+}
+
+export async function resetPasswordHandler(req: Request, res: Response): Promise<void> {
+  await resetPassword(req.body as ResetPasswordInput);
+  res.status(200).json({ success: true, message: 'Şifreniz sıfırlandı, tekrar giriş yapabilirsiniz' });
 }

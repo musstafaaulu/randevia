@@ -15,6 +15,7 @@ import {
 } from '../../src/messaging/topology';
 import { Notification } from '../../src/models/Notification.model';
 import * as notificationService from '../../src/services/notification.service';
+import * as sender from '../../src/services/notificationSender';
 import { makeEvent } from '../utils/events';
 
 // Runs against the real RabbitMQ from docker-compose, on a test-only exchange
@@ -65,6 +66,12 @@ beforeAll(async () => {
 
   startEventConsumer();
   await waitFor(async () => isEventConsumerConnected());
+});
+
+beforeEach(() => {
+  // This file is about the RabbitMQ consumer/retry plumbing, not e-mail
+  // delivery - see notification.test.ts and notificationSender.test.ts.
+  jest.spyOn(sender, 'sendNotification').mockResolvedValue(undefined);
 });
 
 afterEach(async () => {

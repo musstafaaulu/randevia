@@ -26,8 +26,24 @@ export const changePasswordSchema = z.object({
   newPassword: z.string().min(8, 'Yeni şifre en az 8 karakter olmalı').max(72),
 });
 
+export const verifyEmailSchema = z.object({
+  token: z.string().min(1, 'Token gerekli'),
+});
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().trim().toLowerCase().email('Geçersiz e-posta formatı'),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, 'Token gerekli'),
+  newPassword: z.string().min(8, 'Yeni şifre en az 8 karakter olmalı').max(72),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RefreshInput = z.infer<typeof refreshSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

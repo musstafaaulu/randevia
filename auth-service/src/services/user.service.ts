@@ -86,6 +86,6 @@ export async function ensureAdminUser(): Promise<void> {
     return;
   }
 
-  await User.create({ name, email, password, role: 'admin' });
+  await User.create({ name, email, password, role: 'admin', emailVerified: true });
   logger.info('Admin user created', { email });
 }

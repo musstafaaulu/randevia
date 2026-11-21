@@ -1,5 +1,5 @@
-import { createHash, randomBytes } from 'node:crypto';
 import { Document, model, Schema, Types } from 'mongoose';
+import { generateOpaqueToken, hashToken } from '../utils/tokens';
 
 // Refresh tokens are opaque random strings, not JWTs: rotation and reuse
 // detection both need a database lookup anyway (to check revokedAt), so a
@@ -56,10 +56,4 @@ refreshTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export const RefreshToken = model<IRefreshToken>('RefreshToken', refreshTokenSchema);
 
-export function generateOpaqueToken(): string {
-  return randomBytes(48).toString('hex');
-}
-
-export function hashToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
-}
+export { generateOpaqueToken, hashToken };

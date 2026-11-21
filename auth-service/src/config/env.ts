@@ -21,12 +21,22 @@ const baseSchema = z.object({
   ADMIN_EMAIL: z.preprocess(emptyToUndefined, z.string().trim().toLowerCase().email().optional()),
   ADMIN_PASSWORD: z.preprocess(emptyToUndefined, z.string().min(8).max(72).optional()),
   ADMIN_NAME: z.string().trim().min(2).max(100).default('Randevia Admin'),
+  // Mail delivery for the verification/password-reset e-mails this service
+  // sends itself (MailHog in development; any SMTP server in production).
+  SMTP_HOST: z.string().default('localhost'),
+  SMTP_PORT: z.coerce.number().int().positive().default(1025),
+  SMTP_FROM: z.string().default('Randevia <no-reply@randevia.local>'),
+  // Base URL of the web UI, used to build the links inside those e-mails.
+  WEB_BASE_URL: z.string().default('http://localhost:8080'),
+  // Shared secret for the service-to-service /internal endpoints (currently
+  // just notification-service looking up a recipient's e-mail address).
+  INTERNAL_SERVICE_TOKEN: z.string().min(1, 'INTERNAL_SERVICE_TOKEN is required'),
 });
 
 // Placeholder secrets like "changeme" must never reach production: anyone who
 // knows a JWT secret can forge tokens for any user and role.
 const MIN_PRODUCTION_SECRET_LENGTH = 32;
-const PRODUCTION_SECRETS = ['JWT_ACCESS_SECRET'] as const;
+const PRODUCTION_SECRETS = ['JWT_ACCESS_SECRET', 'INTERNAL_SERVICE_TOKEN'] as const;
 
 const envSchema = baseSchema.superRefine((config, ctx) => {
   if (config.NODE_ENV !== 'production') return;

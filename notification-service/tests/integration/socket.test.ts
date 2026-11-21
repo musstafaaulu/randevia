@@ -7,6 +7,7 @@ import { env } from '../../src/config/env';
 import { Notification } from '../../src/models/Notification.model';
 import { getIO, initSocketServer } from '../../src/realtime/socketServer';
 import { processAppointmentEvent } from '../../src/services/notification.service';
+import * as sender from '../../src/services/notificationSender';
 import { makeEvent } from '../utils/events';
 import { generateAccessToken, newUserId } from '../utils/token';
 
@@ -56,9 +57,16 @@ beforeAll(async () => {
   baseUrl = `http://localhost:${port}`;
 });
 
+beforeEach(() => {
+  // This file is about the realtime socket layer, not e-mail delivery - see
+  // notification.test.ts for that.
+  jest.spyOn(sender, 'sendNotification').mockResolvedValue(undefined);
+});
+
 afterEach(async () => {
   for (const client of clients.splice(0)) client.disconnect();
   await Notification.deleteMany({});
+  jest.restoreAllMocks();
 });
 
 afterAll(async () => {

@@ -102,6 +102,15 @@ services:
       retries: 5
       start_period: 10s
 
+  # Catches every e-mail the backend sends in development instead of
+  # delivering it anywhere; its web UI (http://localhost:8025) lists them.
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: randevia-mailhog
+    restart: unless-stopped
+    ports:
+      - '8025:8025' # Web UI + JSON API
+
   # ------------------------------------------------------------- services --
   auth-service:
     <<: *service
@@ -117,6 +126,13 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@randevia.local}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is not set. Copy .env.example to .env and fill it in}
       ADMIN_NAME: ${ADMIN_NAME:-Randevia Admin}
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+      SMTP_FROM: ${SMTP_FROM:-Randevia <no-reply@randevia.local>}
+      # The browser's address for the web UI (links inside e-mails), not this
+      # container's - same convention as WEB_API_BASE_URL for the gateway.
+      WEB_BASE_URL: http://localhost:${WEB_PORT:-8080}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN is not set. Copy .env.example to .env and fill it in}
       TRUST_PROXY: 1
       LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
@@ -156,6 +172,11 @@ services:
       RABBITMQ_EXCHANGE: randevia.events
       NOTIFICATION_QUEUE: notification-service.appointment-events
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+      SMTP_FROM: ${SMTP_FROM:-Randevia <no-reply@randevia.local>}
+      AUTH_SERVICE_URL: http://auth-service:4000
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN is not set. Copy .env.example to .env and fill it in}
       TRUST_PROXY: 1
       LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
@@ -164,6 +185,8 @@ services:
       rabbitmq:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      auth-service:
         condition: service_healthy
 
   api-gateway:
