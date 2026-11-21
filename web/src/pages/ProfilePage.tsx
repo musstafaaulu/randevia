@@ -2,10 +2,12 @@ import { useState, type FormEvent } from 'react';
 import { changePassword, updateProfile } from '../api/auth';
 import { ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { FieldError } from '../components/FieldError';
 
 export function ProfilePage() {
   const { user, refreshUser } = useAuth();
   const [name, setName] = useState(user?.name ?? '');
+  const [nameTouched, setNameTouched] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -13,14 +15,28 @@ export function ProfilePage() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordTouched, setPasswordTouched] = useState<{ new?: boolean; confirm?: boolean }>({});
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [savingPassword, setSavingPassword] = useState(false);
 
   if (!user) return null;
 
+  const nameError =
+    nameTouched && name.trim().length < 2 ? 'Ad en az 2 karakter olmalı.' : undefined;
+  const newPasswordError =
+    passwordTouched.new && newPassword.length > 0 && newPassword.length < 8
+      ? 'Şifre en az 8 karakter olmalı.'
+      : undefined;
+  const confirmPasswordError =
+    passwordTouched.confirm && confirmPassword.length > 0 && confirmPassword !== newPassword
+      ? 'Yeni şifreler birbiriyle eşleşmiyor.'
+      : undefined;
+
   async function handleProfileSubmit(event: FormEvent) {
     event.preventDefault();
+    setNameTouched(true);
+    if (name.trim().length < 2) return;
     setProfileError(null);
     setProfileMessage(null);
     setSavingProfile(true);
@@ -37,11 +53,11 @@ export function ProfilePage() {
 
   async function handlePasswordSubmit(event: FormEvent) {
     event.preventDefault();
+    setPasswordTouched({ new: true, confirm: true });
     setPasswordError(null);
     setPasswordMessage(null);
 
-    if (newPassword !== confirmPassword) {
-      setPasswordError('Yeni şifreler birbiriyle eşleşmiyor.');
+    if (newPassword.length < 8 || newPassword !== confirmPassword) {
       return;
     }
 
@@ -76,7 +92,9 @@ export function ProfilePage() {
               minLength={2}
               value={name}
               onChange={(e) => setName(e.target.value)}
+              onBlur={() => setNameTouched(true)}
             />
+            <FieldError message={nameError} />
           </label>
           <label>
             E-posta
@@ -112,7 +130,9 @@ export function ProfilePage() {
               autoComplete="new-password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
+              onBlur={() => setPasswordTouched((t) => ({ ...t, new: true }))}
             />
+            <FieldError message={newPasswordError} />
           </label>
           <label>
             Yeni Şifre (Tekrar)
@@ -123,7 +143,9 @@ export function ProfilePage() {
               autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
+              onBlur={() => setPasswordTouched((t) => ({ ...t, confirm: true }))}
             />
+            <FieldError message={confirmPasswordError} />
           </label>
           <button className="primary-button" type="submit" disabled={savingPassword}>
             {savingPassword ? 'Güncelleniyor…' : 'Şifreyi Güncelle'}

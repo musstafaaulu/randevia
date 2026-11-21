@@ -471,6 +471,12 @@ textarea {
   resize: vertical;
 }
 
+.field-error {
+  color: var(--color-danger);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
 .form-error {
   background: #fef2f2;
   color: var(--color-danger);

@@ -11,6 +11,7 @@ import {
 import { useAuth } from '../auth/AuthContext';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { EmptyState } from '../components/EmptyState';
+import { FieldError } from '../components/FieldError';
 import { Spinner } from '../components/Spinner';
 import { useSocket } from '../socket/SocketContext';
 import type { Appointment, Availability, Doctor } from '../types/api';
@@ -38,6 +39,7 @@ export function DoctorPanelPage() {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmTarget, setConfirmTarget] = useState<Appointment | null>(null);
+  const [endTimeTouched, setEndTimeTouched] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Availability | null>(null);
   const [deletingAvailability, setDeletingAvailability] = useState(false);
 
@@ -92,8 +94,15 @@ export function DoctorPanelPage() {
     }
   }
 
+  const endTimeError =
+    endTimeTouched && startTime && endTime && endTime <= startTime
+      ? 'Bitiş saati başlangıçtan sonra olmalı.'
+      : undefined;
+
   async function handleAvailabilitySubmit(event: FormEvent) {
     event.preventDefault();
+    setEndTimeTouched(true);
+    if (startTime && endTime && endTime <= startTime) return;
     setError(null);
     setMessage(null);
     try {
@@ -104,6 +113,7 @@ export function DoctorPanelPage() {
       setMessage('Müsaitlik eklendi.');
       setStartTime('');
       setEndTime('');
+      setEndTimeTouched(false);
       await refresh();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Müsaitlik eklenemedi.');
@@ -234,7 +244,9 @@ export function DoctorPanelPage() {
                   required
                   value={endTime}
                   onChange={(e) => setEndTime(e.target.value)}
+                  onBlur={() => setEndTimeTouched(true)}
                 />
+                <FieldError message={endTimeError} />
               </label>
               <button className="primary-button" type="submit">
                 Ekle
