@@ -229,6 +229,145 @@ button:disabled {
   color: var(--color-danger);
 }
 
+/* ------------------------------------------------------------ landing -- */
+
+.landing-hero {
+  text-align: center;
+  padding: 4rem 1rem 3rem;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.landing-hero-logo {
+  height: 48px;
+  margin-bottom: 1.5rem;
+}
+
+.landing-hero h1 {
+  font-size: 2.3rem;
+  line-height: 1.25;
+  margin: 0 0 1rem;
+}
+
+.landing-hero p {
+  color: var(--color-text-muted);
+  font-size: 1.1rem;
+  margin: 0 0 2rem;
+}
+
+.landing-hero-actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.landing-section {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 3rem 1.25rem;
+}
+
+.landing-section > h2 {
+  text-align: center;
+  margin: 0 0 2rem;
+  font-size: 1.6rem;
+}
+
+.landing-section-muted {
+  background: var(--color-surface);
+  border-radius: var(--radius);
+}
+
+.landing-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
+
+.landing-step {
+  position: relative;
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.75rem 1.25rem;
+  text-align: center;
+}
+
+.landing-step-number {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.9rem;
+  font-weight: 800;
+  color: var(--color-border);
+  font-size: 1.3rem;
+}
+
+.landing-step-icon {
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.landing-step h3 {
+  margin: 0 0 0.4rem;
+}
+
+.landing-step p {
+  color: var(--color-text-muted);
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.landing-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.landing-feature {
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.landing-feature > span {
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.landing-feature h3 {
+  margin: 0 0 0.4rem;
+}
+
+.landing-feature p {
+  color: var(--color-text-muted);
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.landing-specialties {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+.landing-specialty {
+  font-size: 0.9rem;
+  padding: 0.4rem 0.9rem;
+}
+
+.landing-cta {
+  text-align: center;
+  padding: 3rem 1.25rem 4rem;
+}
+
+.landing-cta h2 {
+  margin: 0 0 1.5rem;
+  font-size: 1.5rem;
+}
+
 /* --------------------------------------------------------------- auth -- */
 
 .auth-page {

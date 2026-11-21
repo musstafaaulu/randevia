@@ -1,9 +1,11 @@
 import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom';
-import { AuthProvider } from './auth/AuthContext';
+import { AuthProvider, useAuth } from './auth/AuthContext';
 import { SocketProvider } from './socket/SocketContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { Spinner } from './components/Spinner';
+import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { DoctorsListPage } from './pages/DoctorsListPage';
@@ -13,11 +15,18 @@ import { DoctorPanelPage } from './pages/DoctorPanelPage';
 import { AdminPanelPage } from './pages/AdminPanelPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
+function HomeRoute() {
+  const { user, loading } = useAuth();
+  if (loading) return <Spinner label="Yükleniyor…" />;
+  if (user) return <Navigate to="/doktorlar" replace />;
+  return <LandingPage />;
+}
+
 function AppRoutes() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route path="/" element={<Navigate to="/doktorlar" replace />} />
+        <Route path="/" element={<HomeRoute />} />
         <Route path="/giris" element={<LoginPage />} />
         <Route path="/kayit" element={<RegisterPage />} />
 
