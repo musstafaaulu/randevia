@@ -1,3 +1,5 @@
+<p align="center"><img src="web/public/logo.svg" alt="Randevia" height="56" /></p>
+
 # Randevia
 
 **Randevia**, hastaların doktorlardan randevu alabildiği, doktorların randevularını yönetebildiği ve her iki tarafın da randevu hareketlerinden **anlık (gerçek zamanlı)** olarak haberdar edildiği, **mikroservis mimarisiyle** geliştirilmiş bir sağlık randevu sistemidir.
@@ -39,7 +41,8 @@ Sistem; tek giriş noktası olan bir **API Gateway**, kendi veritabanına sahip 
 - **Güvenlik:** JWT (access + refresh token), httpOnly refresh cookie, bcrypt ile parola özeti, helmet, CORS, rate limiting.
 - **Gözlemlenebilirlik:** Her isteğe atanan `X-Request-Id` gateway'den servislere taşınır ve tüm loglarda yer alır; yapılandırılmış JSON loglar.
 - **Web arayüzü:** React + TypeScript SPA; Türkçe, mobil uyumlu, yalnızca gateway ile konuşur. Canlı bildirim zili, toast mesajları ve anlık güncellenen doktor müsaitliği içerir.
-- **Kalite:** TypeScript strict mode, Zod ile girdi ve ortam değişkeni doğrulaması, ESLint + Prettier, 167 backend birim/entegrasyon testi, 34 adımlık REST uçtan uca test ve Socket.io üzerinden iki tarayıcıyla çalışan bir Playwright uçtan uca testi.
+- **Tamamen Türkçe:** Arayüz metinleri ve API'nin ürettiği her hata/uyarı mesajı (doğrulama hataları dahil) Türkçe; hata *kodları* ve loglar İngilizce kalır.
+- **Kalite:** TypeScript strict mode, Zod ile girdi ve ortam değişkeni doğrulaması, ESLint + Prettier, 168 backend birim/entegrasyon testi, 34 adımlık REST uçtan uca test ve Socket.io üzerinden iki tarayıcıyla çalışan bir Playwright uçtan uca testi.
 
 ---
 
@@ -224,6 +227,12 @@ node scripts/e2e.mjs
 
 Web arayüzünün gerçek zamanlı akışını iki tarayıcıyla (hasta + doktor) doğrulayan Playwright testi için [`web/e2e/README.md`](web/e2e/README.md) dosyasına bakın.
 
+Her iki test de kendi oluşturduğu kullanıcı/doktor/randevu/bildirimi, çalışma biter bitmez (`scripts/clean-test-data.mjs` ile) otomatik temizler. Script, `@randevia.local` dışındaki her auth kullanıcısını ve ona referans veren her kaydı siler; demo hesapları ve seed doktorları (hepsi `@randevia.local`) etkilenmez. Elle de çalıştırılabilir:
+
+```bash
+node scripts/clean-test-data.mjs
+```
+
 ### Yerel geliştirme (Docker olmadan servis çalıştırma)
 
 ```bash
@@ -323,7 +332,7 @@ Tüm istekler gateway üzerinden yapılır: `http://localhost:3000`. 🔒 işare
 |---|---|---|---|
 | GET | `/api/v1/doctors` | 🔒 herkes | Doktorları listeler |
 | GET | `/api/v1/doctors/:id` | 🔒 herkes | Doktor detayı, müsaitlik aralıkları ve dolu saatler (`bookedSlots`) |
-| POST | `/api/v1/doctors/me` | 🔒 doctor | Kendi doktor profilini oluşturur / günceller (uzmanlık, biyografi) |
+| POST | `/api/v1/doctors/me` | 🔒 doctor | Kendi doktor profilini oluşturur / günceller (ad, uzmanlık, biyografi) |
 | POST | `/api/v1/doctors/me/availability` | 🔒 doctor | Müsaitlik aralığı ekler |
 
 ### Randevular (appointment-service)
@@ -405,10 +414,10 @@ Her servis, gerçek MongoDB ve RabbitMQ'ya karşı çalışan entegrasyon testle
 | Servis | Test sayısı | Kapsanan başlıca senaryolar |
 |---|---:|---|
 | auth-service | **41** ✅ | Kayıt, giriş, refresh (cookie ve gövde), `/me`, doktor rolüyle kendi kendine kayıt reddi, admin rol atama ve listeleme, yetkisiz erişim (401/403), admin'in kendi rolünü değiştirememesi, admin bootstrap ve şifre rotasyonu, production'da zayıf secret reddi, validate middleware (Express 5 `req.query`) |
-| appointment-service | **48** ✅ | Doktor profili ve müsaitlik, randevu oluşturma, çakışma (409), onay/iptal kuralları, rol kısıtları, olay yayınlama, dolu saatlerin (`bookedSlots`) yalnızca pending/confirmed randevulardan gelmesi, RabbitMQ kapalıyken iş akışının sürmesi, yeniden bağlanma, ortam değişkeni doğrulaması, validate middleware |
+| appointment-service | **49** ✅ | Doktor profili (adıyla birlikte) ve müsaitlik, randevu oluşturma, çakışma (409), onay/iptal kuralları, rol kısıtları, olay yayınlama, dolu saatlerin (`bookedSlots`) yalnızca pending/confirmed randevulardan gelmesi, RabbitMQ kapalıyken iş akışının sürmesi, yeniden bağlanma, ortam değişkeni doğrulaması, validate middleware |
 | notification-service | **50** ✅ | Olaydan bildirim üretimi, şablonlar, ack/nack kararları, gecikmeli retry, deneme hakkı bitince DLQ, bozuk mesajın DLQ'ya gitmesi, idempotency, sayfalama, okundu işaretleme (tekil/toplu, başkasının bildirimini okuyamama), **Socket.io**: yetkisiz/geçersiz token reddi, doğru kullanıcıya doğru `notification` olayı ve unread count, başkasına sızmaması, `doctor:watch` ile `slot.updated` yayını, ortam değişkeni doğrulaması |
 | api-gateway | **28** ✅ | Yönlendirme ve yol koruma, gövde/başlık/cookie aktarımı, request id üretme/taşıma/temizleme, helmet, CORS (liste, `*`, preflight, upstream başlıklarının ezilmesi), genel ve giriş limitleri (429), 502/504, sağlık kontrolleri, **gerçek bir Socket.io el sıkışmasının ve mesajının websocket upgrade üzerinden notification-service'e iletilmesi** |
-| **Toplam** | **167** ✅ | |
+| **Toplam** | **168** ✅ | |
 
 **Uçtan uca test** (`scripts/e2e.mjs`, `docker compose up` ile ayağa kalkan gerçek sisteme karşı, yalnızca gateway üzerinden): **34/34 kontrol başarılı** ✅ — sağlık, request id, güvenlik başlıkları, rate limit başlıkları, kayıt, rol atama, doktor profili ve müsaitlik, randevu alma, çift rezervasyon engeli, onay, iptal, RabbitMQ üzerinden hasta ve doktora iletilen bildirimler, sayfalama ve kuyruk topolojisi.
 
@@ -480,6 +489,12 @@ RabbitMQ **en az bir kez** (at-least-once) teslim garantisi verir: bağlantı ko
 
 Herkes yalnızca **hasta** olarak kayıt olabilir; `role: "doctor"` ile kayıt isteği `400` ile reddedilir. Doktor (ve admin) rolü yalnızca admin tarafından `PATCH /api/v1/auth/users/:id/role` ile atanır. İlk admin, açılışta `ADMIN_EMAIL` / `ADMIN_PASSWORD` değişkenlerinden oluşturulur. Admin'in kendi rolünü değiştirmesi engellenmiştir (sistemin admin'siz kalmaması için). Yeni rol, kullanıcının bir sonraki access token'ında geçerli olur (en geç `JWT_ACCESS_EXPIRES_IN` sonra, `/refresh` ile hemen).
 
+### Türkçe hata ve uyarı mesajları
+
+Kullanıcının görebileceği her metin Türkçedir: doğrulama hataları, 401/403/404/409/429 mesajları, gateway'in 502/504 yanıtları, başarı mesajları ve arayüzdeki tüm metinler. Kod tarafı (değişken/fonksiyon/dosya adları, loglar, commit mesajları, URL'ler) İngilizce kalır — ayrım, "kullanıcıya gösterilen" ile "geliştiriciye/sisteme ait" arasındadır.
+
+Elle yazılan her `ApiError` mesajı ve her Zod şema mesajı Türkçeye çevrildi; ayrıca Zod v4'ün kendi ürettiği mesajlar (örn. bir enum'a özel mesaj yazılmadıysa "geçersiz seçenek" hatası) için `zod/locales`'teki hazır Türkçe sözlük üç servisin açılışında (`z.config(tr())`) etkinleştirildi. Böylece gelecekte eklenecek yeni bir şemaya mesaj yazmayı unutsak bile kullanıcı İngilizce bir hata görmez.
+
 ### Gerçek zamanlı katman (Socket.io + Redis)
 
 Socket.io sunucusu notification-service içinde, REST API ile aynı HTTP sunucusu üzerinde çalışır; gateway, `/socket.io` yolundaki hem normal hem websocket-upgrade isteklerini oraya proxy'ler, böylece istemci tek bir adres (gateway) bilir. Bağlantı anında `io.use` middleware'i JWT'yi `verifyAccessToken` ile doğrular (REST istekleriyle aynı fonksiyon); geçersiz veya eksik token `connect_error` ile reddedilir. Her soket kendi `user:<id>` odasına katılır; bir doktorun sayfasını izleyen herkes (rolünden bağımsız) isteğe bağlı olarak `doctor:<doctorId>` odasına katılabilir.
@@ -493,6 +508,10 @@ Redis adapter bağlantısı **en iyi çaba** (best-effort) ile kurulur ve beklen
 React SPA, sunucu adreslerini bilmez; yalnızca gateway'in adresiyle konuşur (REST ve Socket.io için aynı adres). Erişim token'ı yalnızca bellekte tutulur (XSS'e karşı `localStorage` kullanılmaz); sayfa yenilendiğinde `httpOnly` refresh çerezi ile sessizce yeni bir access token alınır. Bu nedenle `CORS_ORIGIN`'in gateway'de tam olarak web arayüzünün adresine ayarlanması gerekir (`*` ile credentials'lı istekler tarayıcı tarafından reddedilir).
 
 Doktor detay sayfasındaki "müsait saatler" listesi, müsaitlik aralıklarından (30 dakikalık adımlarla) istemci tarafında üretilir ve `bookedSlots` ile karşılaştırılır; `slot.updated` olayı geldiğinde sayfa tamamen yeniden çekilir (ince taneli, kısmi state güncellemesi yerine) — daha az kod ile her zaman doğru sonucu garanti eder.
+
+**Doktorun adı nereden geliyor?** appointment-service, auth-service'e senkron çağrı yapmaz; JWT de yalnızca kullanıcı kimliği ve rolünü taşır, adını değil. Bu yüzden doktor profilini oluşturduğunda (veya seed script çalıştığında) doktorun adı appointment-service'teki `Doctor` dokümanına da yazılır (denormalize edilir) — doktor kartlarının ve detay sayfasının başlık olarak gerçek bir ad gösterebilmesinin tek yolu budur.
+
+**Tasarım sistemi:** Inter yazı tipi, teal/mavi marka paleti, doktor adından türetilen deterministik renkli avatarlar (aynı doktor her zaman aynı rengi alır), uzmanlık için rozet (badge), randevu durumları için renkli rozetler, kartlarda yumuşak hover efektleri, liste yüklenirken iskelet (skeleton) yer tutucular ve her boş liste için tutarlı bir "boş durum" bileşeni. Logo, takvim ve nabız çizgisini birleştiren özgün bir SVG ikon + "Randevia" yazısından oluşur; favicon, üst menü ve giriş/kayıt sayfası karşılama alanında aynı logo kullanılır.
 
 ### Diğer kararlar
 
@@ -515,7 +534,8 @@ randevia/
 ├── docs/screenshots/       # README'deki ekran görüntüleri
 ├── scripts/
 │   ├── e2e.mjs             # Uçtan uca REST testi
-│   └── seed-demo.mjs       # Demo hesapları ve örnek veri
+│   ├── seed-demo.mjs       # Demo hesapları ve örnek veri
+│   └── clean-test-data.mjs # @randevia.local dışındaki test verisini temizler
 ├── docker-compose.yml      # Tüm sistem: 5 servis + 3 MongoDB + RabbitMQ + Redis
 └── .env.example            # docker compose ayarları
 ```
