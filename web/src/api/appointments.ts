@@ -1,5 +1,5 @@
 import { apiRequest } from './client';
-import type { Appointment } from '../types/api';
+import type { Appointment, AppointmentStats } from '../types/api';
 
 export function createAppointment(input: {
   doctorId: string;
@@ -18,4 +18,8 @@ export function confirmAppointment(id: string): Promise<{ appointment: Appointme
 
 export function cancelAppointment(id: string): Promise<{ appointment: Appointment }> {
   return apiRequest(`/api/v1/appointments/${id}/cancel`, { method: 'PATCH' });
+}
+
+export function getAppointmentStats(): Promise<AppointmentStats> {
+  return apiRequest('/api/v1/appointments/stats');
 }

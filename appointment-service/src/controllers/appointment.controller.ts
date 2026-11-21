@@ -33,3 +33,8 @@ export async function confirmAppointmentHandler(req: Request, res: Response): Pr
   const appointment = await appointmentService.confirmAppointment(userId, id);
   res.status(200).json({ success: true, message: 'Randevu onaylandı', data: { appointment } });
 }
+
+export async function getStatsHandler(_req: Request, res: Response): Promise<void> {
+  const stats = await appointmentService.getAppointmentStats();
+  res.status(200).json({ success: true, data: stats });
+}

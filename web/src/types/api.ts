@@ -61,6 +61,18 @@ export interface Pagination {
   totalPages: number;
 }
 
+export interface UserStats {
+  total: number;
+  byRole: Record<Role, number>;
+}
+
+export interface AppointmentStats {
+  totalAppointments: number;
+  totalDoctors: number;
+  byStatus: Record<AppointmentStatus, number>;
+  dailyCounts: { date: string; count: number }[];
+}
+
 export interface SlotUpdatedPayload {
   doctorId: string;
   appointmentId: string;

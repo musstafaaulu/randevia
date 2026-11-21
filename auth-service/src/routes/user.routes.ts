@@ -1,5 +1,9 @@
 import { Router } from 'express';
-import { listUsersHandler, updateUserRoleHandler } from '../controllers/user.controller';
+import {
+  getUserStatsHandler,
+  listUsersHandler,
+  updateUserRoleHandler,
+} from '../controllers/user.controller';
 import { authenticate } from '../middlewares/authenticate';
 import { authorize } from '../middlewares/authorize';
 import { validate } from '../middlewares/validate';
@@ -14,6 +18,7 @@ const router = Router();
 router.use(authenticate, authorize('admin'));
 
 router.get('/', validate({ query: listUsersQuerySchema }), listUsersHandler);
+router.get('/stats', getUserStatsHandler);
 router.patch(
   '/:id/role',
   validate({ params: userIdParamSchema, body: updateUserRoleSchema }),

@@ -1,6 +1,6 @@
 import { env } from '../config/env';
 import { IUser, User } from '../models/User.model';
-import type { Role } from '../types/role';
+import { ROLES, type Role } from '../types/role';
 import { ApiError } from '../utils/ApiError';
 import logger from '../utils/logger';
 import type { ListUsersQuery } from '../validations/user.validation';
@@ -21,6 +21,26 @@ export async function listUsers({ role, page, limit }: ListUsersQuery): Promise<
   ]);
 
   return { users, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+}
+
+export interface UserStats {
+  total: number;
+  byRole: Record<Role, number>;
+}
+
+export async function getUserStats(): Promise<UserStats> {
+  const rows = await User.aggregate<{ _id: Role; count: number }>([
+    { $group: { _id: '$role', count: { $sum: 1 } } },
+  ]);
+
+  const byRole = Object.fromEntries(ROLES.map((role) => [role, 0])) as Record<Role, number>;
+  let total = 0;
+  for (const row of rows) {
+    byRole[row._id] = row.count;
+    total += row.count;
+  }
+
+  return { total, byRole };
 }
 
 // The new role takes effect in the user's next access token (at the latest

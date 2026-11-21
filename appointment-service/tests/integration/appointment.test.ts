@@ -245,6 +245,47 @@ describe('PATCH /api/v1/appointments/:id/confirm', () => {
   });
 });
 
+describe('GET /api/v1/appointments/stats', () => {
+  it('summarizes status counts, doctor count and a 14-day daily trend', async () => {
+    const doctor = await createDoctor();
+    const patientToken = generateAccessToken(newUserId(), 'patient');
+    const bookRes = await request(app)
+      .post('/api/v1/appointments')
+      .set('Authorization', `Bearer ${patientToken}`)
+      .send({ doctorId: doctor.doctorId, date: futureDate() });
+    await request(app)
+      .patch(`/api/v1/appointments/${bookRes.body.data.appointment._id}/confirm`)
+      .set('Authorization', `Bearer ${doctor.token}`);
+
+    const adminToken = generateAccessToken(newUserId(), 'admin');
+    const res = await request(app)
+      .get('/api/v1/appointments/stats')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.totalAppointments).toBe(1);
+    expect(res.body.data.totalDoctors).toBe(1);
+    expect(res.body.data.byStatus).toEqual({
+      pending: 0,
+      confirmed: 1,
+      cancelled: 0,
+      completed: 0,
+    });
+    expect(res.body.data.dailyCounts).toHaveLength(14);
+    const today = new Date().toISOString().slice(0, 10);
+    expect(res.body.data.dailyCounts.at(-1)).toEqual({ date: today, count: 1 });
+  });
+
+  it('is forbidden for non-admins', async () => {
+    const doctor = await createDoctor();
+    const res = await request(app)
+      .get('/api/v1/appointments/stats')
+      .set('Authorization', `Bearer ${doctor.token}`);
+
+    expect(res.status).toBe(403);
+  });
+});
+
 describe('Appointment events', () => {
   async function book() {
     const doctor = await createDoctor();

@@ -1,10 +1,24 @@
 import { AppointmentEventType, buildAppointmentEvent } from '../events/appointment.events';
 import { publishEvent } from '../messaging/eventPublisher';
-import { Appointment, IAppointment } from '../models/Appointment.model';
+import {
+  APPOINTMENT_STATUSES,
+  Appointment,
+  AppointmentStatus,
+  IAppointment,
+} from '../models/Appointment.model';
 import { Doctor } from '../models/Doctor.model';
 import { ApiError } from '../utils/ApiError';
 import type { Role } from '../types/role';
 import type { CreateAppointmentInput } from '../validations/appointment.validation';
+
+const STATS_DAYS = 14;
+
+export interface AppointmentStats {
+  totalAppointments: number;
+  totalDoctors: number;
+  byStatus: Record<AppointmentStatus, number>;
+  dailyCounts: { date: string; count: number }[];
+}
 
 // Fire-and-forget: the request must not wait for, or fail because of, the broker.
 function emitAppointmentEvent(
@@ -112,4 +126,46 @@ export async function confirmAppointment(
   emitAppointmentEvent('appointment.confirmed', appointment, doctor.userId.toString());
 
   return appointment;
+}
+
+export async function getAppointmentStats(): Promise<AppointmentStats> {
+  // Bucketed in UTC throughout (to match $dateToString's default timezone),
+  // regardless of the host machine's own local timezone.
+  const since = new Date();
+  since.setUTCDate(since.getUTCDate() - (STATS_DAYS - 1));
+  since.setUTCHours(0, 0, 0, 0);
+
+  const [statusAgg, dailyAgg, totalAppointments, totalDoctors] = await Promise.all([
+    Appointment.aggregate<{ _id: AppointmentStatus; count: number }>([
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]),
+    Appointment.aggregate<{ _id: string; count: number }>([
+      { $match: { createdAt: { $gte: since } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          count: { $sum: 1 },
+        },
+      },
+    ]),
+    Appointment.countDocuments(),
+    Doctor.countDocuments(),
+  ]);
+
+  const byStatus = Object.fromEntries(APPOINTMENT_STATUSES.map((status) => [status, 0])) as Record<
+    AppointmentStatus,
+    number
+  >;
+  for (const row of statusAgg) byStatus[row._id] = row.count;
+
+  const countsByDate = new Map(dailyAgg.map((row) => [row._id, row.count]));
+  const dailyCounts: { date: string; count: number }[] = [];
+  for (let i = 0; i < STATS_DAYS; i += 1) {
+    const day = new Date(since);
+    day.setUTCDate(day.getUTCDate() + i);
+    const key = day.toISOString().slice(0, 10);
+    dailyCounts.push({ date: key, count: countsByDate.get(key) ?? 0 });
+  }
+
+  return { totalAppointments, totalDoctors, byStatus, dailyCounts };
 }

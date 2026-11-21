@@ -1,5 +1,5 @@
 import { apiRequest } from './client';
-import type { Pagination, Role, User } from '../types/api';
+import type { Pagination, Role, User, UserStats } from '../types/api';
 
 export interface AuthResult {
   user: User;
@@ -39,4 +39,8 @@ export function listUsers(params: {
 
 export function updateUserRole(userId: string, role: Role): Promise<{ user: User }> {
   return apiRequest(`/api/v1/auth/users/${userId}/role`, { method: 'PATCH', body: { role } });
+}
+
+export function getUserStats(): Promise<UserStats> {
+  return apiRequest('/api/v1/auth/users/stats');
 }

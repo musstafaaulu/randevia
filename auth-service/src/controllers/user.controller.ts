@@ -17,3 +17,8 @@ export async function updateUserRoleHandler(req: Request, res: Response): Promis
   const user = await userService.updateUserRole(req.user!.id, id, role);
   res.status(200).json({ success: true, message: 'Kullanıcı rolü güncellendi', data: { user } });
 }
+
+export async function getUserStatsHandler(_req: Request, res: Response): Promise<void> {
+  const stats = await userService.getUserStats();
+  res.status(200).json({ success: true, data: stats });
+}

@@ -172,6 +172,35 @@ describe('GET /api/v1/auth/users', () => {
   });
 });
 
+describe('GET /api/v1/auth/users/stats', () => {
+  it('counts users by role for an admin', async () => {
+    const admin = await createUser('admin');
+    await createUser('patient');
+    await createUser('patient');
+    await createUser('doctor');
+
+    const res = await request(app)
+      .get('/api/v1/auth/users/stats')
+      .set('Authorization', bearer(admin));
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({
+      total: 4,
+      byRole: { patient: 2, doctor: 1, admin: 1 },
+    });
+  });
+
+  it('is forbidden for non-admins', async () => {
+    const patient = await createUser('patient');
+
+    const res = await request(app)
+      .get('/api/v1/auth/users/stats')
+      .set('Authorization', bearer(patient));
+
+    expect(res.status).toBe(403);
+  });
+});
+
 describe('ensureAdminUser', () => {
   const original = { email: env.ADMIN_EMAIL, password: env.ADMIN_PASSWORD };
 

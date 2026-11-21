@@ -3,6 +3,7 @@ import {
   cancelAppointmentHandler,
   confirmAppointmentHandler,
   createAppointmentHandler,
+  getStatsHandler,
   listMyAppointmentsHandler,
 } from '../controllers/appointment.controller';
 import { authenticate } from '../middlewares/authenticate';
@@ -23,6 +24,7 @@ router.post(
   createAppointmentHandler,
 );
 router.get('/me', authenticate, authorize('patient', 'doctor'), listMyAppointmentsHandler);
+router.get('/stats', authenticate, authorize('admin'), getStatsHandler);
 router.patch(
   '/:id/cancel',
   authenticate,

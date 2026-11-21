@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { listUsers, updateUserRole } from '../api/auth';
+import { getUserStats, listUsers, updateUserRole } from '../api/auth';
+import { getAppointmentStats } from '../api/appointments';
 import { ApiError } from '../api/client';
 import { Spinner } from '../components/Spinner';
-import type { Role, User } from '../types/api';
+import { StatsPanel } from '../components/StatsPanel';
+import type { AppointmentStats, Role, User, UserStats } from '../types/api';
 
 const ROLES: Role[] = ['patient', 'doctor', 'admin'];
 const ROLE_LABELS: Record<Role, string> = { patient: 'Hasta', doctor: 'Doktor', admin: 'Admin' };
@@ -13,6 +15,9 @@ export function AdminPanelPage() {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [pendingRole, setPendingRole] = useState<Record<string, Role>>({});
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [appointmentStats, setAppointmentStats] = useState<AppointmentStats | null>(null);
+  const [statsError, setStatsError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     listUsers({ role: roleFilter || undefined, limit: 100 })
@@ -23,6 +28,15 @@ export function AdminPanelPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    Promise.all([getUserStats(), getAppointmentStats()])
+      .then(([u, a]) => {
+        setUserStats(u);
+        setAppointmentStats(a);
+      })
+      .catch(() => setStatsError('İstatistikler yüklenemedi.'));
+  }, []);
 
   async function handleSave(user: User) {
     const nextRole = pendingRole[user._id] ?? user.role;
@@ -45,6 +59,11 @@ export function AdminPanelPage() {
       <p className="auth-subtitle">Kullanıcı rollerini yönetin. Doktor rolü yalnızca buradan atanabilir.</p>
 
       {error && <div className="form-error">{error}</div>}
+      {statsError && <div className="form-error">{statsError}</div>}
+
+      {userStats && appointmentStats && (
+        <StatsPanel userStats={userStats} appointmentStats={appointmentStats} />
+      )}
 
       <div className="filter-row">
         <label>
