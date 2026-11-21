@@ -28,7 +28,10 @@ export function LandingPage() {
   return (
     <div className="landing">
       <section className="landing-hero">
-        <img src="/logo.svg" alt="Randevia" className="landing-hero-logo" />
+        <span className="hero-logo hero-logo-lg">
+          <img src="/favicon.svg" alt="" aria-hidden="true" className="hero-logo-icon" />
+          Randevia
+        </span>
         <h1>Sağlık randevularınız artık tek tıkla.</h1>
         <p>
           Doktorunuzu seçin, uygun saati işaretleyin; randevunuzun her adımını anlık

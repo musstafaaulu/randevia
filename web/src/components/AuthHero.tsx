@@ -1,7 +1,10 @@
 export function AuthHero() {
   return (
     <div className="auth-hero">
-      <img src="/logo.svg" alt="Randevia" className="auth-hero-logo" />
+      <span className="hero-logo">
+        <img src="/favicon.svg" alt="" aria-hidden="true" className="hero-logo-icon" />
+        Randevia
+      </span>
       <h2>Sağlık randevularınız artık tek tıkla.</h2>
       <p>Doktorunuzu seçin, uygun saati işaretleyin; gerisini biz anında haber veririz.</p>
       <ul className="auth-hero-points">

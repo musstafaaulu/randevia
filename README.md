@@ -288,14 +288,19 @@ Script ayrıca listeyi gerçekçi göstermek için farklı uzmanlıklarda birka�
 
 ## Ekran Görüntüleri
 
-Aşağıdaki görüntüler, `docker compose up` ile ayağa kalkan ve `seed-demo.mjs` ile doldurulan gerçek sistemden, Playwright ile otomatik olarak alınmıştır.
+Aşağıdaki görüntüler, `docker compose up` ile ayağa kalkan ve `seed-demo.mjs` ile doldurulan gerçek sistemden, Playwright ile otomatik olarak alınmıştır. Canlı bildirim akışı için bkz. [README'nin en üstündeki GIF](#randevia). Her sayfanın hem açık hem koyu tema görüntüsü aşağıdadır.
 
-| | |
-|---|---|
-| ![Giriş](docs/screenshots/01-giris.png) Giriş sayfası | ![Doktorlar](docs/screenshots/02-doktorlar.png) Doktor listesi |
-| ![Doktor detayı](docs/screenshots/03-doktor-detay.png) Doktor detayı – canlı müsaitlik | ![Randevularım](docs/screenshots/04-randevularim.png) Randevularım |
-| ![Doktor paneli](docs/screenshots/05-doktor-paneli.png) Doktor paneli | ![Admin paneli](docs/screenshots/06-admin-paneli.png) Admin paneli |
-| ![Canlı bildirim](docs/screenshots/07-canli-bildirim-toast.png) Hasta randevu alır almaz, doktorun ekranında **sayfa yenilenmeden** beliren bildirim zili ve toast | ![Mobil görünüm](docs/screenshots/08-mobil-doktorlar.png) Mobil uyumlu görünüm |
+| Sayfa | Açık tema | Koyu tema |
+|---|---|---|
+| Tanıtım ana sayfası | ![Ana sayfa](docs/screenshots/00-anasayfa.png) | ![Ana sayfa - koyu](docs/screenshots/00-anasayfa-dark.png) |
+| Giriş | ![Giriş](docs/screenshots/01-giris.png) | ![Giriş - koyu](docs/screenshots/01-giris-dark.png) |
+| Doktor listesi (arama/filtre) | ![Doktorlar](docs/screenshots/02-doktorlar.png) | ![Doktorlar - koyu](docs/screenshots/02-doktorlar-dark.png) |
+| Doktor detayı – haftalık müsaitlik | ![Doktor detayı](docs/screenshots/03-doktor-detay.png) | ![Doktor detayı - koyu](docs/screenshots/03-doktor-detay-dark.png) |
+| Randevularım | ![Randevularım](docs/screenshots/04-randevularim.png) | ![Randevularım - koyu](docs/screenshots/04-randevularim-dark.png) |
+| Doktor paneli | ![Doktor paneli](docs/screenshots/05-doktor-paneli.png) | ![Doktor paneli - koyu](docs/screenshots/05-doktor-paneli-dark.png) |
+| Admin paneli – istatistikler | ![Admin paneli](docs/screenshots/06-admin-paneli.png) | ![Admin paneli - koyu](docs/screenshots/06-admin-paneli-dark.png) |
+| Mobil görünüm | ![Mobil görünüm](docs/screenshots/08-mobil-doktorlar.png) | ![Mobil görünüm - koyu](docs/screenshots/08-mobil-doktorlar-dark.png) |
+| Profilim | ![Profilim](docs/screenshots/09-profilim.png) | ![Profilim - koyu](docs/screenshots/09-profilim-dark.png) |
 
 ---
 
