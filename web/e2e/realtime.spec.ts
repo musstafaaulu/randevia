@@ -38,11 +38,11 @@ test('patient booking an appointment notifies the doctor live, without a reload'
     // No reload on the doctor's page: the badge and toast must arrive purely
     // over the websocket connection that was opened at login.
     await expect(doctorSession.page.locator('.bell-badge')).toHaveText('1', { timeout: 10_000 });
-    await expect(doctorSession.page.getByText('New appointment request')).toBeVisible();
+    await expect(doctorSession.page.getByText('Yeni randevu talebi')).toBeVisible();
 
     await doctorSession.page.locator('.bell-button').click();
     await expect(
-      doctorSession.page.locator('.bell-dropdown').getByText('New appointment request'),
+      doctorSession.page.locator('.bell-dropdown').getByText('Yeni randevu talebi'),
     ).toBeVisible();
   } finally {
     await doctorSession.context.close();

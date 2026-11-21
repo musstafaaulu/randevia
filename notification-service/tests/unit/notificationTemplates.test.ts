@@ -23,6 +23,6 @@ describe('buildNotificationDrafts', () => {
 
   it('formats the appointment date in the configured timezone', () => {
     // 07:30 UTC is 10:30 in Europe/Istanbul (UTC+3).
-    expect(formatAppointmentDate('2030-05-20T07:30:00.000Z')).toBe('20 May 2030 at 10:30');
+    expect(formatAppointmentDate('2030-05-20T07:30:00.000Z')).toBe('20 Mayıs 2030, 10:30');
   });
 });

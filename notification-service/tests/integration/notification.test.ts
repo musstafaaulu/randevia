@@ -131,7 +131,7 @@ describe('GET /api/v1/notifications/me', () => {
     expect(res.body.data.notifications).toHaveLength(1);
     expect(res.body.data.notifications[0]).toMatchObject({
       recipientRole: 'doctor',
-      title: 'New appointment request',
+      title: 'Yeni randevu talebi',
     });
   });
 

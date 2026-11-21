@@ -14,42 +14,47 @@ type Template = Record<RecipientRole, (date: string) => { title: string; message
 const TEMPLATES: Record<AppointmentEventType, Template> = {
   'appointment.created': {
     patient: (date) => ({
-      title: 'Appointment request received',
-      message: `Your appointment request for ${date} has been received and is awaiting the doctor's confirmation.`,
+      title: 'Randevu talebiniz alındı',
+      message: `${date} tarihli randevu talebiniz alındı ve doktorun onayı bekleniyor.`,
     }),
     doctor: (date) => ({
-      title: 'New appointment request',
-      message: `A patient has requested an appointment with you on ${date}.`,
+      title: 'Yeni randevu talebi',
+      message: `Bir hasta sizden ${date} tarihinde randevu talep etti.`,
     }),
   },
   'appointment.confirmed': {
     patient: (date) => ({
-      title: 'Appointment confirmed',
-      message: `Your appointment on ${date} has been confirmed by the doctor.`,
+      title: 'Randevunuz onaylandı',
+      message: `${date} tarihli randevunuz doktor tarafından onaylandı.`,
     }),
     doctor: (date) => ({
-      title: 'Appointment confirmed',
-      message: `You confirmed the appointment on ${date}.`,
+      title: 'Randevuyu onayladınız',
+      message: `${date} tarihli randevuyu onayladınız.`,
     }),
   },
   'appointment.cancelled': {
     patient: (date) => ({
-      title: 'Appointment cancelled',
-      message: `Your appointment on ${date} has been cancelled.`,
+      title: 'Randevunuz iptal edildi',
+      message: `${date} tarihli randevunuz iptal edildi.`,
     }),
     doctor: (date) => ({
-      title: 'Appointment cancelled',
-      message: `The appointment on ${date} has been cancelled by the patient.`,
+      title: 'Randevu iptal edildi',
+      message: `${date} tarihli randevu hasta tarafından iptal edildi.`,
     }),
   },
 };
 
 export function formatAppointmentDate(isoDate: string): string {
-  return new Intl.DateTimeFormat('en-GB', {
+  const date = new Date(isoDate);
+  const datePart = new Intl.DateTimeFormat('tr-TR', {
     dateStyle: 'long',
+    timeZone: env.NOTIFICATION_TIMEZONE,
+  }).format(date);
+  const timePart = new Intl.DateTimeFormat('tr-TR', {
     timeStyle: 'short',
     timeZone: env.NOTIFICATION_TIMEZONE,
-  }).format(new Date(isoDate));
+  }).format(date);
+  return `${datePart}, ${timePart}`;
 }
 
 export function buildNotificationDrafts(event: AppointmentEvent): NotificationDraft[] {
