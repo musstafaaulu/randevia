@@ -57,7 +57,7 @@ Sistem; tek giriş noktası olan bir **API Gateway**, kendi veritabanına sahip 
 - **Gözlemlenebilirlik:** Her isteğe atanan `X-Request-Id` gateway'den servislere taşınır ve tüm loglarda yer alır; yapılandırılmış JSON loglar.
 - **Web arayüzü:** React + TypeScript SPA; Türkçe, mobil uyumlu, açık/koyu tema, yalnızca gateway ile konuşur. Tanıtım sayfası, doktor arama/filtre, haftalık müsaitlik takvimi, onay pencereleri, profil/şifre yönetimi, admin istatistik paneli, canlı bildirim zili, toast mesajları ve anlık güncellenen doktor müsaitliği içerir.
 - **Tamamen Türkçe:** Arayüz metinleri ve API'nin ürettiği her hata/uyarı mesajı (doğrulama hataları dahil) Türkçe; hata *kodları* ve loglar İngilizce kalır.
-- **Kalite:** TypeScript strict mode, Zod ile girdi ve ortam değişkeni doğrulaması, ESLint + Prettier, 188 backend birim/entegrasyon testi, 27 web bileşen testi (Vitest), 34 adımlık REST uçtan uca test, Socket.io üzerinden iki tarayıcıyla çalışan bir Playwright uçtan uca testi ve her push'ta çalışan bir GitHub Actions CI hattı.
+- **Kalite:** TypeScript strict mode, Zod ile girdi ve ortam değişkeni doğrulaması, ESLint + Prettier, 194 backend birim/entegrasyon testi, 27 web bileşen testi (Vitest), 34 adımlık REST uçtan uca test, Socket.io üzerinden iki tarayıcıyla çalışan bir Playwright uçtan uca testi ve her push'ta çalışan bir GitHub Actions CI hattı.
 
 ---
 
@@ -347,7 +347,8 @@ Tüm istekler gateway üzerinden yapılır: `http://localhost:3000`. 🔒 işare
 |---|---|---|---|
 | POST | `/api/v1/auth/register` | — | Hasta olarak kayıt olur; access token döner, refresh token cookie'ye yazılır |
 | POST | `/api/v1/auth/login` | — | Giriş yapar |
-| POST | `/api/v1/auth/refresh` | — | Refresh token (cookie veya gövde) ile yeni token çifti alır |
+| POST | `/api/v1/auth/refresh` | — | Refresh token (cookie veya gövde) ile yeni token çifti alır; kullanılan refresh token **tek kullanımlıktır** (rotasyon) |
+| POST | `/api/v1/auth/logout` | — | Refresh token'ı iptal eder ve çerezi temizler; token yoksa da başarılı sayılır |
 | GET | `/api/v1/auth/me` | 🔒 herkes | Oturumdaki kullanıcının profili |
 | PATCH | `/api/v1/auth/me` | 🔒 herkes | Kendi adını günceller |
 | PATCH | `/api/v1/auth/me/password` | 🔒 herkes | Şifresini değiştirir (mevcut şifre doğrulamalı) |
@@ -444,11 +445,11 @@ Her servis, gerçek MongoDB ve RabbitMQ'ya karşı çalışan entegrasyon testle
 
 | Servis | Test sayısı | Kapsanan başlıca senaryolar |
 |---|---:|---|
-| auth-service | **50** ✅ | Kayıt, giriş, refresh (cookie ve gövde), `/me`, profil adı güncelleme, şifre değiştirme (mevcut şifre doğrulamalı), doktor rolüyle kendi kendine kayıt reddi, admin rol atama ve listeleme, kullanıcı istatistikleri (`/users/stats`), yetkisiz erişim (401/403), admin'in kendi rolünü değiştirememesi, admin bootstrap ve şifre rotasyonu, production'da zayıf secret reddi, validate middleware (Express 5 `req.query`) |
+| auth-service | **56** ✅ | Kayıt, giriş, refresh (cookie ve gövde), **refresh token rotasyonu** (eski token bir daha kullanılamaz, çalınan/tekrar kullanılan token kullanıcının tüm oturumlarını kapatır), `/logout` (token iptali, idempotent), `/me`, profil adı güncelleme, şifre değiştirme (mevcut şifre doğrulamalı), doktor rolüyle kendi kendine kayıt reddi, admin rol atama ve listeleme, kullanıcı istatistikleri (`/users/stats`), yetkisiz erişim (401/403), admin'in kendi rolünü değiştirememesi, admin bootstrap ve şifre rotasyonu, production'da zayıf secret reddi, validate middleware (Express 5 `req.query`) |
 | appointment-service | **60** ✅ | Doktor profili (adıyla birlikte) ve müsaitlik ekleme/silme, randevu oluşturma, çakışma (409), onay/iptal kuralları, rol kısıtları, **transactional outbox** (olay + randevu aynı transaction'da, outbox publisher'ın yayınlama/yeniden deneme/zaten-yayınlanmışı-atlama davranışı), dolu saatlerin (`bookedSlots`) yalnızca pending/confirmed randevulardan gelmesi, randevu istatistikleri (durum dağılımı + 14 günlük trend, UTC'de), RabbitMQ kapalıyken üç olayın da outbox'ta güvenle durması, ortam değişkeni doğrulaması, validate middleware |
 | notification-service | **50** ✅ | Olaydan bildirim üretimi, şablonlar, ack/nack kararları, gecikmeli retry, deneme hakkı bitince DLQ, bozuk mesajın DLQ'ya gitmesi, idempotency, sayfalama, okundu işaretleme (tekil/toplu, başkasının bildirimini okuyamama), **Socket.io**: yetkisiz/geçersiz token reddi, doğru kullanıcıya doğru `notification` olayı ve unread count, başkasına sızmaması, `doctor:watch` ile `slot.updated` yayını, ortam değişkeni doğrulaması |
 | api-gateway | **28** ✅ | Yönlendirme ve yol koruma, gövde/başlık/cookie aktarımı, request id üretme/taşıma/temizleme, helmet, CORS (liste, `*`, preflight, upstream başlıklarının ezilmesi), genel ve giriş limitleri (429), 502/504, sağlık kontrolleri, **gerçek bir Socket.io el sıkışmasının ve mesajının websocket upgrade üzerinden notification-service'e iletilmesi** |
-| **Toplam** | **188** ✅ | |
+| **Toplam** | **194** ✅ | |
 
 **Uçtan uca test** (`scripts/e2e.mjs`, `docker compose up` ile ayağa kalkan gerçek sisteme karşı, yalnızca gateway üzerinden): **34/34 kontrol başarılı** ✅ — sağlık, request id, güvenlik başlıkları, rate limit başlıkları, kayıt, rol atama, doktor profili ve müsaitlik, randevu alma, çift rezervasyon engeli, onay, iptal, RabbitMQ üzerinden hasta ve doktora iletilen bildirimler, sayfalama ve kuyruk topolojisi. Her koşu, kendi oluşturduğu test verisini sonunda otomatik temizler (`scripts/clean-test-data.mjs`).
 
@@ -536,6 +537,18 @@ RabbitMQ **en az bir kez** (at-least-once) teslim garantisi verir: bağlantı ko
 ### Yetkilendirme ve rol yönetimi
 
 Herkes yalnızca **hasta** olarak kayıt olabilir; `role: "doctor"` ile kayıt isteği `400` ile reddedilir. Doktor (ve admin) rolü yalnızca admin tarafından `PATCH /api/v1/auth/users/:id/role` ile atanır. İlk admin, açılışta `ADMIN_EMAIL` / `ADMIN_PASSWORD` değişkenlerinden oluşturulur. Admin'in kendi rolünü değiştirmesi engellenmiştir (sistemin admin'siz kalmaması için). Yeni rol, kullanıcının bir sonraki access token'ında geçerli olur (en geç `JWT_ACCESS_EXPIRES_IN` sonra, `/refresh` ile hemen).
+
+### Refresh token rotasyonu
+
+Erişim (access) token'ı değişmedi: kısa ömürlü, durumsuz (stateless) bir JWT olarak kalmaya devam ediyor. Refresh token ise artık bir JWT **değil** — veritabanında tutulan, rastgele üretilmiş, opak bir dize (bkz. `auth-service/src/models/RefreshToken.model.ts`). Sebep basit: rotasyon ve "çalınmış token" tespiti zaten her seferinde veritabanına bakmayı gerektiriyor, bu yüzden JWT'nin kendi kendini doğrulayabilme özelliğinin burada hiçbir faydası yok; veritabanında yalnızca token'ın **özeti** (SHA-256) tutulur, ham token hiçbir zaman saklanmaz.
+
+Her `/refresh` çağrısı kullanılan token'ı **iptal eder** ve aynı "aile" (`family`) içinde yeni bir token döner — yani her refresh token tam olarak bir kez kullanılabilir:
+
+- Token bulunamazsa veya süresi dolmuşsa → `401`.
+- Token zaten iptal edilmiş (daha önce rotasyona uğramış) bir token olarak tekrar gönderilirse, bu **çalınmış bir token'ın tekrar oynatıldığı** anlamına gelir (meşru istemci çoktan bir sonrakine geçmiştir) — bu durumda o kullanıcının **tüm** refresh token'ları iptal edilir, tek bir oturum/cihaz değil (kullanıcı her yerden çıkış yapmış olur).
+- `POST /api/v1/auth/logout`, yalnızca o oturumun token'ını iptal eder ve çerezi temizler; token yoksa da (iki kez çıkış yapmak gibi) başarılı sayılır.
+
+Bir sınırlama bilinçli olarak kabul edildi: access token'lar durumsuz olduğu için, iptalden sonra zaten verilmiş bir access token kendi süresi (`JWT_ACCESS_EXPIRES_IN`, varsayılan 15 dakika) dolana kadar geçerli kalmaya devam eder. Bunu tamamen kapatmak bir access-token kara listesi (blacklist) gerektirirdi ki bu, kısa ömürlü token'lar için genellikle gereğinden fazla bir karmaşıklıktır.
 
 ### Türkçe hata ve uyarı mesajları
 
@@ -633,7 +646,6 @@ web/
 ## Yol Haritası
 
 - Gerçek e-posta / SMS sağlayıcı entegrasyonu (şu an gönderim simüle edilip loglanıyor).
-- Refresh token rotasyonu ve iptali (logout, token blacklist).
 - Dağıtık rate limiting için gateway'de Redis store (şu an yalnızca Socket.io adapter'ı Redis kullanıyor).
 - OpenAPI / Swagger dokümantasyonu.
 - CI pipeline (GitHub Actions) ile lint, test ve imaj build.

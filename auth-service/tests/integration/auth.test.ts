@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import request from 'supertest';
 import app from '../../src/app';
 import { env } from '../../src/config/env';
+import { RefreshToken } from '../../src/models/RefreshToken.model';
 import { User } from '../../src/models/User.model';
 
 function extractCookie(res: request.Response): string {
@@ -17,6 +18,7 @@ beforeAll(async () => {
 
 afterEach(async () => {
   await User.deleteMany({});
+  await RefreshToken.deleteMany({});
 });
 
 afterAll(async () => {
@@ -140,6 +142,83 @@ describe('POST /api/v1/auth/refresh', () => {
       .send({ refreshToken: 'not-a-real-token' });
 
     expect(res.status).toBe(401);
+  });
+});
+
+describe('Refresh token rotation', () => {
+  it('invalidates the old refresh token once it has been used', async () => {
+    const registerRes = await request(app).post('/api/v1/auth/register').send(baseUser);
+    const refreshToken = extractCookie(registerRes).split('=')[1];
+
+    const first = await request(app).post('/api/v1/auth/refresh').send({ refreshToken });
+    expect(first.status).toBe(200);
+
+    const reuse = await request(app).post('/api/v1/auth/refresh').send({ refreshToken });
+    expect(reuse.status).toBe(401);
+  });
+
+  it('issues a new refresh token different from the old one each time', async () => {
+    const registerRes = await request(app).post('/api/v1/auth/register').send(baseUser);
+    const firstToken = extractCookie(registerRes).split('=')[1];
+
+    const res = await request(app).post('/api/v1/auth/refresh').send({ refreshToken: firstToken });
+    const secondToken = extractCookie(res).split('=')[1];
+
+    expect(secondToken).toBeDefined();
+    expect(secondToken).not.toBe(firstToken);
+  });
+
+  it('revokes every refresh token for the user when a rotated-away token is reused', async () => {
+    const registerRes = await request(app).post('/api/v1/auth/register').send(baseUser);
+    const originalToken = extractCookie(registerRes).split('=')[1];
+
+    const rotated = await request(app)
+      .post('/api/v1/auth/refresh')
+      .send({ refreshToken: originalToken });
+    expect(rotated.status).toBe(200);
+    const rotatedToken = extractCookie(rotated).split('=')[1];
+
+    // Replaying the already-rotated token is exactly what a stolen token
+    // being used after the legitimate client already moved on looks like.
+    const replay = await request(app)
+      .post('/api/v1/auth/refresh')
+      .send({ refreshToken: originalToken });
+    expect(replay.status).toBe(401);
+
+    // The whole user is logged out, not just this one chain: even the
+    // legitimately-rotated token from a moment ago is now dead too.
+    const afterTheft = await request(app)
+      .post('/api/v1/auth/refresh')
+      .send({ refreshToken: rotatedToken });
+    expect(afterTheft.status).toBe(401);
+  });
+});
+
+describe('POST /api/v1/auth/logout', () => {
+  it('revokes the refresh token so it can no longer be used to refresh', async () => {
+    const registerRes = await request(app).post('/api/v1/auth/register').send(baseUser);
+    const refreshToken = extractCookie(registerRes).split('=')[1];
+
+    const logoutRes = await request(app).post('/api/v1/auth/logout').send({ refreshToken });
+    expect(logoutRes.status).toBe(200);
+
+    const afterLogout = await request(app).post('/api/v1/auth/refresh').send({ refreshToken });
+    expect(afterLogout.status).toBe(401);
+  });
+
+  it('clears the refresh cookie', async () => {
+    const registerRes = await request(app).post('/api/v1/auth/register').send(baseUser);
+    const refreshToken = extractCookie(registerRes).split('=')[1];
+
+    const res = await request(app).post('/api/v1/auth/logout').send({ refreshToken });
+    const setCookie = (res.headers['set-cookie'] as unknown as string[])[0];
+    expect(setCookie).toMatch(/refreshToken=;?/);
+    expect(setCookie.toLowerCase()).toMatch(/expires=|max-age=0/);
+  });
+
+  it('succeeds even with no refresh token at all (idempotent)', async () => {
+    const res = await request(app).post('/api/v1/auth/logout').send({});
+    expect(res.status).toBe(200);
   });
 });
 

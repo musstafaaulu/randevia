@@ -18,6 +18,13 @@ export function fetchMe(): Promise<{ user: User }> {
   return apiRequest('/api/v1/auth/me');
 }
 
+// Revokes the refresh token server-side (see auth-service's refresh token
+// rotation) and clears the cookie; the request carries it automatically
+// (credentials: 'include'), so there is nothing to pass explicitly here.
+export function logoutRequest(): Promise<void> {
+  return apiRequest('/api/v1/auth/logout', { method: 'POST' });
+}
+
 export function updateProfile(name: string): Promise<{ user: User }> {
   return apiRequest('/api/v1/auth/me', { method: 'PATCH', body: { name } });
 }

@@ -1,5 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
-import { fetchMe, login as loginRequest, register as registerRequest } from '../api/auth';
+import {
+  fetchMe,
+  login as loginRequest,
+  logoutRequest,
+  register as registerRequest,
+} from '../api/auth';
 import { apiRequest, ApiError, setAccessToken, setUnauthorizedHandler } from '../api/client';
 import type { User } from '../types/api';
 
@@ -19,8 +24,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const logout = useCallback(() => {
+    // Clear local state immediately so the UI reacts right away; the server
+    // call revokes the refresh token so it can't be used again, but that
+    // shouldn't block (or fail) the user actually being signed out locally.
     setAccessToken(null);
     setUser(null);
+    void logoutRequest().catch(() => undefined);
   }, []);
 
   useEffect(() => {

@@ -1,8 +1,15 @@
 import { Request, Response } from 'express';
 import { User } from '../models/User.model';
-import { changePassword, login, refresh, register, updateProfile } from '../services/auth.service';
+import {
+  changePassword,
+  login,
+  logout,
+  refresh,
+  register,
+  updateProfile,
+} from '../services/auth.service';
 import { ApiError } from '../utils/ApiError';
-import { REFRESH_TOKEN_COOKIE, setRefreshTokenCookie } from '../utils/cookies';
+import { clearRefreshTokenCookie, REFRESH_TOKEN_COOKIE, setRefreshTokenCookie } from '../utils/cookies';
 import type {
   ChangePasswordInput,
   LoginInput,
@@ -32,10 +39,14 @@ export async function loginHandler(req: Request, res: Response): Promise<void> {
   });
 }
 
-export async function refreshHandler(req: Request, res: Response): Promise<void> {
+function refreshTokenFromRequest(req: Request): string | undefined {
   const cookieToken = (req.cookies as Record<string, string> | undefined)?.[REFRESH_TOKEN_COOKIE];
-  const bodyToken = (req.body as { refreshToken?: string }).refreshToken;
-  const token = cookieToken ?? bodyToken;
+  const bodyToken = (req.body as { refreshToken?: string } | undefined)?.refreshToken;
+  return cookieToken ?? bodyToken;
+}
+
+export async function refreshHandler(req: Request, res: Response): Promise<void> {
+  const token = refreshTokenFromRequest(req);
 
   if (!token) {
     throw new ApiError(401, 'Oturum bilgisi bulunamadı, lütfen tekrar giriş yapın');
@@ -49,6 +60,12 @@ export async function refreshHandler(req: Request, res: Response): Promise<void>
     message: 'Oturum yenilendi',
     data: { user, accessToken: tokens.accessToken },
   });
+}
+
+export async function logoutHandler(req: Request, res: Response): Promise<void> {
+  await logout(refreshTokenFromRequest(req));
+  clearRefreshTokenCookie(res);
+  res.status(200).json({ success: true, message: 'Çıkış yapıldı' });
 }
 
 export async function meHandler(req: Request, res: Response): Promise<void> {

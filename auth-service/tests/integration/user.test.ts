@@ -1,9 +1,11 @@
+import { randomUUID } from 'node:crypto';
 import mongoose from 'mongoose';
 import request from 'supertest';
 import app from '../../src/app';
 import { env } from '../../src/config/env';
+import { generateOpaqueToken, hashToken, RefreshToken } from '../../src/models/RefreshToken.model';
 import { IUser, User } from '../../src/models/User.model';
-import { generateTokenPair } from '../../src/services/token.service';
+import { generateAccessToken } from '../../src/services/token.service';
 import { ensureAdminUser } from '../../src/services/user.service';
 import type { Role } from '../../src/types/role';
 
@@ -20,7 +22,20 @@ async function createUser(role: Role): Promise<IUser> {
 }
 
 function bearer(user: IUser): string {
-  return `Bearer ${generateTokenPair(user._id.toString(), user.role).accessToken}`;
+  return `Bearer ${generateAccessToken(user._id.toString(), user.role)}`;
+}
+
+// Mirrors what auth.service.ts's issueTokens() does, without going through a
+// real register/login call - this file creates users directly via the model.
+async function issueRefreshToken(user: IUser): Promise<string> {
+  const token = generateOpaqueToken();
+  await RefreshToken.create({
+    userId: user._id,
+    tokenHash: hashToken(token),
+    family: randomUUID(),
+    expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+  });
+  return token;
 }
 
 beforeAll(async () => {
@@ -29,6 +44,7 @@ beforeAll(async () => {
 
 afterEach(async () => {
   await User.deleteMany({});
+  await RefreshToken.deleteMany({});
 });
 
 afterAll(async () => {
@@ -53,7 +69,7 @@ describe('PATCH /api/v1/auth/users/:id/role', () => {
   it('issues the new role on the next token refresh', async () => {
     const admin = await createUser('admin');
     const patient = await createUser('patient');
-    const { refreshToken } = generateTokenPair(patient._id.toString(), patient.role);
+    const refreshToken = await issueRefreshToken(patient);
 
     await request(app)
       .patch(`/api/v1/auth/users/${patient._id.toString()}/role`)

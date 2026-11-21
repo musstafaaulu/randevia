@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   changePasswordHandler,
   loginHandler,
+  logoutHandler,
   meHandler,
   refreshHandler,
   registerHandler,
@@ -22,6 +23,7 @@ const router = Router();
 router.post('/register', validate({ body: registerSchema }), registerHandler);
 router.post('/login', validate({ body: loginSchema }), loginHandler);
 router.post('/refresh', validate({ body: refreshSchema }), refreshHandler);
+router.post('/logout', validate({ body: refreshSchema }), logoutHandler);
 router.get('/me', authenticate, meHandler);
 router.patch('/me', authenticate, validate({ body: updateProfileSchema }), updateProfileHandler);
 router.patch(
