@@ -88,6 +88,7 @@ async function registerOrLogin({ name, email, password }) {
 
 async function setupDoctor(doctorInput, adminToken) {
   const auth = await registerOrLogin(doctorInput);
+  let token = auth.accessToken;
 
   if (auth.user.role !== 'doctor') {
     const promote = await call('PATCH', `/api/v1/auth/users/${auth.user._id}/role`, {
@@ -97,12 +98,14 @@ async function setupDoctor(doctorInput, adminToken) {
     if (promote.status !== 200) {
       throw new Error(`Could not promote ${doctorInput.email}: ${JSON.stringify(promote.json)}`);
     }
-    // The role takes effect on the next token, so log in again.
+    // The role takes effect on the next token, so log in again. Each auth
+    // call also counts against the gateway's credential rate limit, so this
+    // only happens the first time a doctor is promoted, not on every run.
+    const login = await call('POST', '/api/v1/auth/login', {
+      body: { email: doctorInput.email, password: doctorInput.password },
+    });
+    token = login.json.data.accessToken;
   }
-  const login = await call('POST', '/api/v1/auth/login', {
-    body: { email: doctorInput.email, password: doctorInput.password },
-  });
-  const token = login.json.data.accessToken;
 
   const profile = await call('POST', '/api/v1/doctors/me', {
     token,
