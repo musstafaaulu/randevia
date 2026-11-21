@@ -10,8 +10,13 @@
 // Each run uses fresh e-mail addresses, so it can be repeated; note that the
 // gateway allows AUTH_RATE_LIMIT_MAX credential calls per 15 minutes and IP,
 // and one run makes 6 of them.
+//
+// The user/doctor/appointment/notifications it creates are removed again at
+// the end (pass or fail) by scripts/clean-test-data.mjs, so repeated runs
+// never leave test data behind in the shared database.
 
 import { readFileSync } from 'node:fs';
+import { cleanTestData } from './clean-test-data.mjs';
 
 // Minimal .env reader (KEY=value lines, optional quotes).
 function readComposeEnv() {
@@ -46,7 +51,7 @@ function check(condition, description, details) {
   if (!condition) {
     console.error(`  FAIL  ${description}`);
     if (details !== undefined) console.error(JSON.stringify(details, null, 2));
-    process.exit(1);
+    throw new Error(`check failed: ${description}`);
   }
   passed += 1;
   console.log(`  ok    ${description}`);
@@ -86,6 +91,7 @@ function section(title) {
   console.log(`\n${title}`);
 }
 
+async function main() {
 // ------------------------------------------------------------------------
 section('Gateway');
 {
@@ -251,11 +257,16 @@ check(
 
 // ------------------------------------------------------------------------
 section('RabbitMQ topology');
+let queues;
 try {
   const res = await fetch(`${RABBITMQ_API}/queues/%2F`, {
     headers: { Authorization: `Basic ${Buffer.from('guest:guest').toString('base64')}` },
   });
-  const queues = (await res.json()).map((q) => q.name);
+  queues = (await res.json()).map((q) => q.name);
+} catch (err) {
+  console.log(`  skip  management API not reachable (${err.message})`);
+}
+if (queues) {
   for (const name of [
     'notification-service.appointment-events',
     'notification-service.appointment-events.retry',
@@ -263,8 +274,17 @@ try {
   ]) {
     check(queues.includes(name), `queue ${name} exists`);
   }
-} catch (err) {
-  console.log(`  skip  management API not reachable (${err.message})`);
 }
 
 console.log(`\nAll ${passed} checks passed.`);
+}
+
+try {
+  await main();
+} catch (err) {
+  console.error(err);
+  process.exitCode = 1;
+} finally {
+  console.log('\nCleaning up test data created by this run...');
+  await cleanTestData();
+}

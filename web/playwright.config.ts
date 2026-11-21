@@ -13,6 +13,9 @@ export default defineConfig({
   fullyParallel: false,
   retries: 0,
   reporter: 'list',
+  // Seeded users/doctors live in the real database (see e2e/helpers.ts);
+  // remove them again once the run finishes, pass or fail.
+  globalTeardown: './e2e/global-teardown.ts',
   use: {
     baseURL,
     trace: 'retain-on-failure',

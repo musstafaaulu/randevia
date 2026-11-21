@@ -25,3 +25,8 @@ otomatik başlatır. İki ayrı tarayıcı bağlamı (hasta ve doktor) açar, ha
 gerçek arayüz üzerinden bir randevu alır ve doktorun ekranında sayfa
 yenilenmeden bildirim zili ile toast mesajının anlık olarak göründüğünü
 doğrular.
+
+Test, hasta/doktor hesabını gerçek veritabanına kaydeder (`helpers.ts`); bu
+yüzden koşu biter bitmez (başarılı ya da başarısız) `globalTeardown`
+otomatik olarak `../scripts/clean-test-data.mjs`'i çalıştırıp bu kayıtları
+temizler. Demo hesapları (`@randevia.local`) bu temizlikten etkilenmez.
