@@ -11,7 +11,7 @@ function getPreferredTheme(): Theme {
   } catch {
     // localStorage can throw in private browsing; fall through to the media query.
   }
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  return window.matchMedia?.('(prefers-color-scheme: dark)')?.matches ? 'dark' : 'light';
 }
 
 interface ThemeContextValue {
