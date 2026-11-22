@@ -5,6 +5,7 @@ export const APPOINTMENT_EVENT_TYPES = [
   'appointment.created',
   'appointment.confirmed',
   'appointment.cancelled',
+  'appointment.reminder',
 ] as const;
 
 export type AppointmentEventType = (typeof APPOINTMENT_EVENT_TYPES)[number];

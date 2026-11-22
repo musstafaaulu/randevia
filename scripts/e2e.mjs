@@ -227,7 +227,11 @@ async function notificationsOf(token, expected) {
   return waitFor(async () => {
     const res = await call('GET', '/api/v1/notifications/me?limit=50', { token });
     const items = res.body.data?.notifications ?? [];
-    return items.length >= expected && items;
+    // Real e-mail delivery (auth-service lookup + SMTP to MailHog) takes
+    // noticeably longer than the old synchronous simulated send, so a
+    // notification can exist before its status flips to 'sent' - wait for
+    // both, not just the count, or this races and fails intermittently.
+    return items.length >= expected && items.every((n) => n.status === 'sent') && items;
   });
 }
 

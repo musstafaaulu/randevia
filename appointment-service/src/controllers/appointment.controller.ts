@@ -38,3 +38,14 @@ export async function getStatsHandler(_req: Request, res: Response): Promise<voi
   const stats = await appointmentService.getAppointmentStats();
   res.status(200).json({ success: true, data: stats });
 }
+
+export async function getAppointmentIcsHandler(req: Request, res: Response): Promise<void> {
+  const { id, role } = req.user!;
+  const { id: appointmentId } = req.params as unknown as AppointmentIdParam;
+  const ics = await appointmentService.buildAppointmentIcs(id, role, appointmentId);
+  res
+    .status(200)
+    .set('Content-Type', 'text/calendar; charset=utf-8')
+    .set('Content-Disposition', `attachment; filename="randevu-${appointmentId}.ics"`)
+    .send(ics);
+}

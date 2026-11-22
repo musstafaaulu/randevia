@@ -3,6 +3,7 @@ import {
   cancelAppointmentHandler,
   confirmAppointmentHandler,
   createAppointmentHandler,
+  getAppointmentIcsHandler,
   getStatsHandler,
   listMyAppointmentsHandler,
 } from '../controllers/appointment.controller';
@@ -38,6 +39,13 @@ router.patch(
   authorize('doctor'),
   validate({ params: appointmentIdParamSchema }),
   confirmAppointmentHandler,
+);
+router.get(
+  '/:id/ics',
+  authenticate,
+  authorize('patient', 'doctor'),
+  validate({ params: appointmentIdParamSchema }),
+  getAppointmentIcsHandler,
 );
 
 export default router;

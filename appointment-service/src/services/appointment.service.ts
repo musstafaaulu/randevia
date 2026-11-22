@@ -9,10 +9,15 @@ import {
 import { Doctor } from '../models/Doctor.model';
 import { OutboxEvent } from '../models/OutboxEvent.model';
 import { ApiError } from '../utils/ApiError';
+import { buildIcsEvent } from '../utils/ics';
 import type { Role } from '../types/role';
 import type { CreateAppointmentInput } from '../validations/appointment.validation';
 
 const STATS_DAYS = 14;
+// Availability slots are created in 30-minute steps (see the web UI); an
+// appointment has no explicit end time, so the calendar event assumes the
+// same duration.
+const APPOINTMENT_DURATION_MS = 30 * 60 * 1000;
 
 export interface AppointmentStats {
   totalAppointments: number;
@@ -151,6 +156,71 @@ export async function confirmAppointment(
   } finally {
     await session.endSession();
   }
+}
+
+const REMINDER_BATCH_SIZE = 50;
+
+// Fires once per confirmed appointment whose date falls within leadTimeMs of
+// now, gated by reminderSentAt so a later tick never reminds the same
+// appointment twice. Called from jobs/reminderJob.ts on its own interval.
+export async function sendDueReminders(leadTimeMs: number): Promise<number> {
+  const now = new Date();
+  const due = await Appointment.find({
+    status: 'confirmed',
+    reminderSentAt: null,
+    date: { $gt: now, $lte: new Date(now.getTime() + leadTimeMs) },
+  }).limit(REMINDER_BATCH_SIZE);
+
+  let sent = 0;
+  for (const appointment of due) {
+    const doctor = await Doctor.findById(appointment.doctorId);
+    if (!doctor) continue; // orphaned reference; nothing sane to remind about
+
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        appointment.reminderSentAt = new Date();
+        await appointment.save({ session });
+        await recordOutboxEvent(session, 'appointment.reminder', appointment, doctor.userId.toString());
+      });
+      sent += 1;
+    } finally {
+      await session.endSession();
+    }
+  }
+  return sent;
+}
+
+export async function buildAppointmentIcs(
+  userId: string,
+  role: Role,
+  appointmentId: string,
+): Promise<string> {
+  const appointment = await Appointment.findById(appointmentId);
+  if (!appointment) {
+    throw new ApiError(404, 'Randevu bulunamadı');
+  }
+
+  const doctor = await Doctor.findById(appointment.doctorId);
+  if (!doctor) {
+    throw new ApiError(404, 'Doktor bulunamadı');
+  }
+
+  const isOwner =
+    role === 'doctor'
+      ? doctor.userId.toString() === userId
+      : appointment.patientId.toString() === userId;
+  if (!isOwner) {
+    throw new ApiError(403, 'Sadece kendi randevunuzu takvime ekleyebilirsiniz');
+  }
+
+  return buildIcsEvent({
+    uid: `randevia-appointment-${appointment._id.toString()}@randevia.local`,
+    start: appointment.date,
+    end: new Date(appointment.date.getTime() + APPOINTMENT_DURATION_MS),
+    summary: `Randevia - Dr. ${doctor.name} (${doctor.specialty})`,
+    description: `Randevu durumu: ${appointment.status}`,
+  });
 }
 
 export async function getAppointmentStats(): Promise<AppointmentStats> {

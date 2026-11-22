@@ -42,6 +42,16 @@ const TEMPLATES: Record<AppointmentEventType, Template> = {
       message: `${date} tarihli randevu hasta tarafından iptal edildi.`,
     }),
   },
+  'appointment.reminder': {
+    patient: (date) => ({
+      title: 'Randevu hatırlatması',
+      message: `${date} tarihli randevunuz yaklaşıyor.`,
+    }),
+    doctor: (date) => ({
+      title: 'Randevu hatırlatması',
+      message: `${date} tarihinde bir hastanızla randevunuz var.`,
+    }),
+  },
 };
 
 export function formatAppointmentDate(isoDate: string): string {

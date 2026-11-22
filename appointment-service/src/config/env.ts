@@ -9,6 +9,11 @@ const baseSchema = z.object({
   RABBITMQ_URL: z.string().default('amqp://localhost:5672'),
   RABBITMQ_EXCHANGE: z.string().min(1).default('randevia.events'),
   CORS_ORIGIN: z.string().default('*'),
+  // Reminder job (see jobs/reminderJob.ts): fires once per confirmed
+  // appointment whose date is within REMINDER_LEAD_TIME_MS of now, checking
+  // every REMINDER_CHECK_INTERVAL_MS.
+  REMINDER_CHECK_INTERVAL_MS: z.coerce.number().int().positive().default(60_000),
+  REMINDER_LEAD_TIME_MS: z.coerce.number().int().positive().default(24 * 60 * 60 * 1000),
   // Reverse proxies in front of the service (1 behind the api-gateway), so
   // req.ip and the rate limiter use the client IP from X-Forwarded-For.
   TRUST_PROXY: z.coerce.number().int().min(0).default(0),

@@ -10,6 +10,7 @@ export interface IAppointment extends Document {
   doctorId: Types.ObjectId;
   date: Date;
   status: AppointmentStatus;
+  reminderSentAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -34,6 +35,12 @@ const appointmentSchema = new Schema<IAppointment>(
       enum: APPOINTMENT_STATUSES,
       default: 'pending',
     },
+    // Set once the 24h-ahead reminder job (see reminderJob.ts) has fired for
+    // this appointment, so a confirmed appointment is only ever reminded once
+    // no matter how many times the job's tick runs before that.
+    reminderSentAt: {
+      type: Date,
+    },
   },
   { timestamps: true },
 );
@@ -44,5 +51,8 @@ appointmentSchema.index(
   { doctorId: 1, date: 1 },
   { unique: true, partialFilterExpression: { status: { $in: ['pending', 'confirmed'] } } },
 );
+
+// What reminderJob.ts scans on every tick.
+appointmentSchema.index({ status: 1, reminderSentAt: 1, date: 1 });
 
 export const Appointment = model<IAppointment>('Appointment', appointmentSchema);

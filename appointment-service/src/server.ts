@@ -1,6 +1,7 @@
 import app from './app';
 import { connectDB, disconnectDB } from './config/db';
 import { env } from './config/env';
+import { startReminderJob, stopReminderJob } from './jobs/reminderJob';
 import { startEventPublisher, stopEventPublisher } from './messaging/eventPublisher';
 import { startOutboxPublisher, stopOutboxPublisher } from './messaging/outboxPublisher';
 import logger from './utils/logger';
@@ -12,6 +13,9 @@ async function start(): Promise<void> {
   // Drains the transactional outbox (see models/OutboxEvent.model.ts); also
   // tolerant of RabbitMQ being down, since publishEvent() itself is.
   startOutboxPublisher();
+  // 24h-ahead appointment reminders (see jobs/reminderJob.ts); writes to the
+  // same outbox, so it inherits the same at-least-once delivery guarantee.
+  startReminderJob();
 
   const server = app.listen(env.PORT, () => {
     logger.info(`appointment-service listening on port ${env.PORT} [${env.NODE_ENV}]`);
@@ -19,6 +23,7 @@ async function start(): Promise<void> {
 
   function shutdown(signal: string): void {
     logger.info(`${signal} received, shutting down gracefully`);
+    stopReminderJob();
     stopOutboxPublisher();
     server.close(() => {
       void Promise.allSettled([stopEventPublisher(), disconnectDB()]).finally(() => {

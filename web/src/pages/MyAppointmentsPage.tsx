@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { cancelAppointment, confirmAppointment, listMyAppointments } from '../api/appointments';
+import {
+  cancelAppointment,
+  confirmAppointment,
+  downloadAppointmentIcs,
+  listMyAppointments,
+} from '../api/appointments';
 import { ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -49,6 +54,14 @@ export function MyAppointmentsPage() {
     };
   }, [socket, load]);
 
+  async function handleDownloadIcs(appointment: Appointment) {
+    try {
+      await downloadAppointmentIcs(appointment._id);
+    } catch {
+      setError('Takvim dosyası indirilemedi.');
+    }
+  }
+
   async function runPendingAction() {
     if (!pendingAction) return;
     const { type, appointment } = pendingAction;
@@ -89,6 +102,14 @@ export function MyAppointmentsPage() {
                 </span>
               </div>
               <div className="appointment-actions">
+                {appointment.status === 'confirmed' && (
+                  <button
+                    className="secondary-button"
+                    onClick={() => handleDownloadIcs(appointment)}
+                  >
+                    Takvime Ekle
+                  </button>
+                )}
                 {user?.role === 'doctor' && appointment.status === 'pending' && (
                   <button
                     className="primary-button"
