@@ -57,7 +57,7 @@ Sistem; tek giriş noktası olan bir **API Gateway**, kendi veritabanına sahip 
 - **Gözlemlenebilirlik:** Her isteğe atanan `X-Request-Id` gateway'den servislere taşınır ve tüm loglarda yer alır; yapılandırılmış JSON loglar; OpenTelemetry ile dağıtık izleme (Jaeger) ve Prometheus metrikleri (`/metrics`), önceden yapılandırılmış bir Grafana paneli.
 - **Web arayüzü:** React + TypeScript SPA; Türkçe, mobil uyumlu, açık/koyu tema, yalnızca gateway ile konuşur. Tanıtım sayfası, doktor arama/filtre, haftalık müsaitlik takvimi, onay pencereleri, profil/şifre yönetimi, admin istatistik paneli, canlı bildirim zili, toast mesajları ve anlık güncellenen doktor müsaitliği içerir.
 - **Tamamen Türkçe:** Arayüz metinleri ve API'nin ürettiği her hata/uyarı mesajı (doğrulama hataları dahil) Türkçe; hata *kodları* ve loglar İngilizce kalır.
-- **Kalite:** TypeScript strict mode, Zod ile girdi ve ortam değişkeni doğrulaması, ESLint + Prettier, 243 backend birim/entegrasyon testi, 40 web bileşen testi (Vitest), 34 adımlık REST uçtan uca test, 7 Playwright uçtan uca testi (gerçek zamanlı akış, **gerçek SMTP ile MailHog'a giden e-postanın okunduğu** şifre sıfırlama, `.ics` indirme dahil) ve her push'ta çalışan bir GitHub Actions CI hattı.
+- **Kalite:** TypeScript strict mode, Zod ile girdi ve ortam değişkeni doğrulaması, ESLint + Prettier, 245 backend birim/entegrasyon testi, 40 web bileşen testi (Vitest), 34 adımlık REST uçtan uca test, 7 Playwright uçtan uca testi (gerçek zamanlı akış, **gerçek SMTP ile MailHog'a giden e-postanın okunduğu** şifre sıfırlama, `.ics` indirme dahil) ve her push'ta çalışan bir GitHub Actions CI hattı.
 
 ---
 
@@ -220,6 +220,7 @@ curl http://localhost:3000/api/v1/health/services   # tüm servislerin durumu
 |---|---|
 | http://localhost:8080 | **Web arayüzü** |
 | http://localhost:3000 | API Gateway (tüm API istekleri, Socket.io dahil) |
+| http://localhost:3000/api/docs | İnteraktif API dokümantasyonu (Swagger UI) |
 | http://localhost:15672 | RabbitMQ yönetim paneli (`guest` / `guest`) |
 | http://localhost:8025 | MailHog - sistemin gönderdiği her e-postayı (doğrulama, şifre sıfırlama, randevu bildirimleri) burada yakalar, hiçbir yere teslim etmez |
 | http://localhost:3001 | Grafana - önceden yapılandırılmış panel (`admin` / `.env`'deki `GRAFANA_ADMIN_PASSWORD`) |
@@ -346,6 +347,8 @@ Kök dizindeki [`.env.example`](.env.example) docker compose için değiştirile
 
 Tüm istekler gateway üzerinden yapılır: `http://localhost:3000`. 🔒 işaretli endpoint'ler `Authorization: Bearer <accessToken>` başlığı gerektirir.
 
+> **İnteraktif dokümantasyon:** http://localhost:3000/api/docs — üç servisin tüm genel uç noktalarını tek bir Swagger UI'da birleştiren [`api-gateway/openapi.yaml`](api-gateway/openapi.yaml)'den üretilir (ham belge: `/api/docs.json`). Servisler arası dahili uç nokta (`/auth/internal/*`) bilerek dışarıda tutulmuştur.
+
 ### Sistem (api-gateway)
 
 | Metot | Yol | Yetki | Açıklama |
@@ -466,8 +469,8 @@ Her servis, gerçek MongoDB ve RabbitMQ'ya karşı çalışan entegrasyon testle
 | auth-service | **73** ✅ | Kayıt, giriş, refresh (cookie ve gövde), **refresh token rotasyonu** (eski token bir daha kullanılamaz, çalınan/tekrar kullanılan token kullanıcının tüm oturumlarını kapatır), `/logout` (token iptali, idempotent), **e-posta doğrulama** (kayıtta best-effort gönderim, `/verify-email`, token tekrar kullanılamaz, `/resend-verification`), **şifre sıfırlama** (`/forgot-password` e-posta sızdırmaz, `/reset-password` tüm oturumları kapatır), `/me`, profil adı güncelleme, şifre değiştirme (mevcut şifre doğrulamalı), doktor rolüyle kendi kendine kayıt reddi, admin rol atama ve listeleme, kullanıcı istatistikleri (`/users/stats`), **internal endpoint** (paylaşılan token olmadan 401, var olmayan kullanıcı 404), **`/metrics`** (Prometheus), yetkisiz erişim (401/403), admin'in kendi rolünü değiştirememesi, admin bootstrap ve şifre rotasyonu, production'da zayıf secret reddi, validate middleware (Express 5 `req.query`) |
 | appointment-service | **77** ✅ | Doktor profili (adıyla birlikte) ve müsaitlik ekleme/silme, randevu oluşturma, çakışma (409), onay/iptal kuralları, rol kısıtları, **transactional outbox** (olay + randevu aynı transaction'da, outbox publisher'ın yayınlama/yeniden deneme/zaten-yayınlanmışı-atlama davranışı), dolu saatlerin (`bookedSlots`) yalnızca pending/confirmed randevulardan gelmesi, randevu istatistikleri (durum dağılımı + 14 günlük trend, UTC'de), RabbitMQ kapalıyken üç olayın da outbox'ta güvenle durması, **24 saat öncesi hatırlatma işi** (yalnızca onaylanmış/süresi gelmemiş/henüz hatırlatılmamış randevular, aynı randevu iki kez hatırlatılmaz), **`.ics` indirme** (sahibi olmayana 403, format doğrulaması), **`/metrics`**, ortam değişkeni doğrulaması, validate middleware |
 | notification-service | **63** ✅ | Olaydan bildirim üretimi, şablonlar (randevu hatırlatması dahil), ack/nack kararları, gecikmeli retry, deneme hakkı bitince DLQ, bozuk mesajın DLQ'ya gitmesi, idempotency, sayfalama, okundu işaretleme (tekil/toplu, başkasının bildirimini okuyamama), **gerçek e-posta gönderimi** (auth-service'ten adres çözme, MailHog'a gönderim, adres çözme veya SMTP hatasının bildirimi `pending` bırakıp mevcut RabbitMQ retry/DLQ mekanizmasına devretmesi), **Socket.io**: yetkisiz/geçersiz token reddi, doğru kullanıcıya doğru `notification` olayı ve unread count, başkasına sızmaması, `doctor:watch` ile `slot.updated` yayını, **`/metrics`** (RabbitMQ kuyruk derinliği dahil, kanal hatasında diğer kuyrukların okunmaya devam etmesi), ortam değişkeni doğrulaması |
-| api-gateway | **30** ✅ | Yönlendirme ve yol koruma, gövde/başlık/cookie aktarımı, request id üretme/taşıma/temizleme, helmet, CORS (liste, `*`, preflight, upstream başlıklarının ezilmesi), genel ve giriş limitleri (429), 502/504, sağlık kontrolleri, **`/metrics`**, **gerçek bir Socket.io el sıkışmasının ve mesajının websocket upgrade üzerinden notification-service'e iletilmesi** |
-| **Toplam** | **243** ✅ | |
+| api-gateway | **32** ✅ | Yönlendirme ve yol koruma, gövde/başlık/cookie aktarımı, request id üretme/taşıma/temizleme, helmet, CORS (liste, `*`, preflight, upstream başlıklarının ezilmesi), genel ve giriş limitleri (429), 502/504, sağlık kontrolleri, **`/metrics`**, **`/api/docs`** (Swagger UI + ham OpenAPI belgesi), **gerçek bir Socket.io el sıkışmasının ve mesajının websocket upgrade üzerinden notification-service'e iletilmesi** |
+| **Toplam** | **245** ✅ | |
 
 **Uçtan uca test** (`scripts/e2e.mjs`, `docker compose up` ile ayağa kalkan gerçek sisteme karşı, yalnızca gateway üzerinden): **34/34 kontrol başarılı** ✅ — sağlık, request id, güvenlik başlıkları, rate limit başlıkları, kayıt, rol atama, doktor profili ve müsaitlik, randevu alma, çift rezervasyon engeli, onay, iptal, RabbitMQ üzerinden hasta ve doktora iletilen bildirimler, sayfalama ve kuyruk topolojisi. Her koşu, kendi oluşturduğu test verisini sonunda otomatik temizler (`scripts/clean-test-data.mjs`).
 
@@ -689,7 +692,6 @@ web/
 
 - SMS sağlayıcı entegrasyonu (e-posta artık gerçek SMTP ile gönderiliyor, bkz. "E-posta doğrulama, şifre sıfırlama ve MailHog"; SMS hâlâ yok).
 - Dağıtık rate limiting için gateway'de Redis store (şu an yalnızca Socket.io adapter'ı Redis kullanıyor).
-- OpenAPI / Swagger dokümantasyonu, gateway üzerinden tek bir Swagger UI.
 - k6 ile yük testi.
 - Mimari kararlar için `docs/adr/` altında ADR'ler.
 - Dependabot + CodeQL, servis başına asgari test kapsamı eşiği.
