@@ -321,6 +321,12 @@ Aşağıdaki görüntüler, `docker compose up` ile ayağa kalkan ve `seed-demo.
 | Mobil görünüm | ![Mobil görünüm](docs/screenshots/08-mobil-doktorlar.png) | ![Mobil görünüm - koyu](docs/screenshots/08-mobil-doktorlar-dark.png) |
 | Profilim | ![Profilim](docs/screenshots/09-profilim.png) | ![Profilim - koyu](docs/screenshots/09-profilim-dark.png) |
 
+**Gözlemlenebilirlik** (bkz. ADR-0007) — gerçek sistemden, gerçek trafikle:
+
+| Grafana paneli (gerçek veriyle) | Jaeger — çok servisli bir trace (gateway → appointment-service) |
+|---|---|
+| ![Grafana](docs/screenshots/10-grafana.png) | ![Jaeger trace](docs/screenshots/12-jaeger-trace.png) |
+
 ---
 
 ## Yapılandırma
