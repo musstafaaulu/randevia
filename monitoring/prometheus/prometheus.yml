@@ -1,0 +1,18 @@
+global:
+  scrape_interval: 15s
+
+# Every service exposes /metrics directly (not through the gateway) - see
+# each service's src/middlewares/metrics.ts and app.ts.
+scrape_configs:
+  - job_name: auth-service
+    static_configs:
+      - targets: ['auth-service:4000']
+  - job_name: appointment-service
+    static_configs:
+      - targets: ['appointment-service:4001']
+  - job_name: notification-service
+    static_configs:
+      - targets: ['notification-service:4002']
+  - job_name: api-gateway
+    static_configs:
+      - targets: ['api-gateway:3000']

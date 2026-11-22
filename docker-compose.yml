@@ -111,6 +111,52 @@ services:
     ports:
       - '8025:8025' # Web UI + JSON API
 
+  # --------------------------------------------------------- observability --
+  # Collects the distributed traces every service emits (see src/tracing.ts
+  # in each): OpenTelemetry auto-instrumentation sends spans here over OTLP,
+  # Jaeger's own UI (http://localhost:16686) renders the resulting traces.
+  jaeger:
+    image: jaegertracing/all-in-one:1.65.0
+    container_name: randevia-jaeger
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: 'true'
+    ports:
+      - '16686:16686' # UI
+      - '4317:4317' # OTLP gRPC
+      - '4318:4318' # OTLP HTTP
+
+  # Scrapes every service's /metrics on a timer (see monitoring/prometheus/prometheus.yml).
+  prometheus:
+    image: prom/prometheus:v3.0.1
+    container_name: randevia-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - '9090:9090'
+
+  # Pre-provisioned with a Prometheus + Jaeger datasource and one dashboard
+  # (monitoring/grafana/dashboards/randevia.json) - nothing to click through
+  # by hand after `docker compose up`. Default login: admin / admin.
+  grafana:
+    image: grafana/grafana:11.3.1
+    container_name: randevia-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: 'false'
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - '3001:3000'
+    depends_on:
+      - prometheus
+      - jaeger
+
   # ------------------------------------------------------------- services --
   auth-service:
     <<: *service
@@ -133,6 +179,7 @@ services:
       # container's - same convention as WEB_API_BASE_URL for the gateway.
       WEB_BASE_URL: http://localhost:${WEB_PORT:-8080}
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN is not set. Copy .env.example to .env and fill it in}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
       TRUST_PROXY: 1
       LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
@@ -150,6 +197,7 @@ services:
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET is not set. Copy .env.example to .env and fill it in}
       RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672
       RABBITMQ_EXCHANGE: randevia.events
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
       TRUST_PROXY: 1
       LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
@@ -177,6 +225,7 @@ services:
       SMTP_FROM: ${SMTP_FROM:-Randevia <no-reply@randevia.local>}
       AUTH_SERVICE_URL: http://auth-service:4000
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN is not set. Copy .env.example to .env and fill it in}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
       TRUST_PROXY: 1
       LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
@@ -202,6 +251,7 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-300}
       AUTH_RATE_LIMIT_MAX: ${AUTH_RATE_LIMIT_MAX:-20}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
       LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
       - '${GATEWAY_PORT:-3000}:3000'
@@ -237,3 +287,5 @@ volumes:
   mongo_appointment_data:
   mongo_notification_data:
   redis_data:
+  prometheus_data:
+  grafana_data:

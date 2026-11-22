@@ -1,0 +1,97 @@
+{
+  "title": "Randevia",
+  "uid": "randevia-overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "timezone": "browser",
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "30s",
+  "tags": ["randevia"],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Services up",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "randevia-prometheus" },
+      "targets": [
+        {
+          "expr": "up{job=~\"auth-service|appointment-service|notification-service|api-gateway\"}",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "down", "color": "red" } } },
+            { "type": "value", "options": { "1": { "text": "up", "color": "green" } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [{ "value": null, "color": "red" }, { "value": 1, "color": "green" }] }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "value_and_name" }
+    },
+    {
+      "id": 2,
+      "title": "Request rate (req/s)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "randevia-prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total[1m])) by (job)",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "id": 3,
+      "title": "p95 request latency",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "randevia-prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job))",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 4,
+      "title": "Error rate (5xx %)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "randevia-prometheus" },
+      "targets": [
+        {
+          "expr": "100 * sum(rate(http_requests_total{status_code=~\"5..\"}[5m])) by (job) / sum(rate(http_requests_total[5m])) by (job)",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0 } }
+    },
+    {
+      "id": 5,
+      "title": "RabbitMQ queue depth (notification-service)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "randevia-prometheus" },
+      "targets": [
+        {
+          "expr": "rabbitmq_queue_messages",
+          "legendFormat": "{{queue}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "min": 0 } }
+    }
+  ]
+}

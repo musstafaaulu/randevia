@@ -15,6 +15,19 @@ describe('GET /api/v1/health', () => {
   });
 });
 
+describe('GET /metrics', () => {
+  it('exposes Prometheus metrics, outside /api/v1 and unauthenticated', async () => {
+    const res = await request(app).get('/metrics');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('text/plain');
+    expect(res.text).toContain('http_request_duration_seconds');
+    expect(res.text).toContain('http_requests_total');
+    expect(res.text).toContain('rabbitmq_queue_messages');
+    expect(res.text).toContain('process_cpu_seconds_total');
+  });
+});
+
 describe('Unknown route', () => {
   it('returns 404 for unmatched route', async () => {
     const res = await request(app).get('/api/v1/does-not-exist');

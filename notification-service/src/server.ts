@@ -3,6 +3,7 @@ import app from './app';
 import { connectDB, disconnectDB } from './config/db';
 import { env } from './config/env';
 import { startEventConsumer, stopEventConsumer } from './messaging/eventConsumer';
+import { startQueueLengthPoller, stopQueueLengthPoller } from './messaging/queueLengthPoller';
 import { getIO, initSocketServer } from './realtime/socketServer';
 import logger from './utils/logger';
 
@@ -10,6 +11,7 @@ async function start(): Promise<void> {
   await connectDB();
   // Not awaited: the service starts even if RabbitMQ is down and keeps retrying.
   startEventConsumer();
+  startQueueLengthPoller();
 
   const httpServer = createServer(app);
   initSocketServer(httpServer);
@@ -21,6 +23,7 @@ async function start(): Promise<void> {
   function shutdown(signal: string): void {
     logger.info(`${signal} received, shutting down gracefully`);
     getIO()?.close();
+    void stopQueueLengthPoller();
     server.close(() => {
       // Drain the consumer before the database goes away so in-flight
       // messages can still be written and acked.

@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import { env } from './config/env';
 import { errorHandler } from './middlewares/errorHandler';
+import { metricsHandler, metricsMiddleware } from './middlewares/metrics';
 import { notFoundHandler } from './middlewares/notFoundHandler';
 import routes from './routes';
 import logger from './utils/logger';
@@ -17,6 +18,11 @@ app.use(helmet());
 app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Scraped by Prometheus directly (docker network), not through the gateway
+// or behind the rate limiter below - a scrape must never 429.
+app.get('/metrics', metricsHandler);
+app.use(metricsMiddleware);
 
 app.use(
   // The api-gateway tags each request with X-Request-Id; log it to correlate.

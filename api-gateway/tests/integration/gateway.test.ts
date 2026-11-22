@@ -241,3 +241,15 @@ describe('health', () => {
     expect(res.body.services['auth-service'].status).toBe('up');
   });
 });
+
+describe('GET /metrics', () => {
+  it('exposes Prometheus metrics, outside /api/v1, unauthenticated and never proxied', async () => {
+    const res = await request(buildApp()).get('/metrics');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('text/plain');
+    expect(res.text).toContain('http_request_duration_seconds');
+    expect(res.text).toContain('http_requests_total');
+    expect(res.text).toContain('process_cpu_seconds_total');
+  });
+});

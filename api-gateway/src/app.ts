@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import { env, GatewayConfig } from './config/env';
 import { errorHandler } from './middlewares/errorHandler';
+import { metricsHandler, metricsMiddleware } from './middlewares/metrics';
 import { notFoundHandler } from './middlewares/notFoundHandler';
 import { createRateLimiters } from './middlewares/rateLimiters';
 import { requestId } from './middlewares/requestId';
@@ -49,6 +50,11 @@ export function createApp(config: GatewayConfig = env): Application {
       { stream: { write: (message: string) => logger.http(message.trim()) } },
     ),
   );
+
+  // Scraped by Prometheus directly (docker network), never proxied - a scrape
+  // must never count against the rate limiters below or be forwarded anywhere.
+  app.get('/metrics', metricsHandler);
+  app.use(metricsMiddleware);
 
   // No body parser on purpose: request bodies are streamed to the services as-is.
   const limiters = createRateLimiters(config);
