@@ -17,6 +17,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
+# openapi.ts resolves this relative to itself at runtime (see src/openapi.ts).
+COPY openapi.yaml ./openapi.yaml
 
 USER node
 EXPOSE 3000

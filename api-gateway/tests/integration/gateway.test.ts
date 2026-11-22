@@ -242,6 +242,26 @@ describe('health', () => {
   });
 });
 
+describe('GET /api/docs', () => {
+  it('serves a Swagger UI page', async () => {
+    const res = await request(buildApp()).get('/api/docs/');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('text/html');
+    expect(res.text).toContain('swagger-ui');
+  });
+
+  it('serves the raw OpenAPI document as JSON', async () => {
+    const res = await request(buildApp()).get('/api/docs.json');
+
+    expect(res.status).toBe(200);
+    expect(res.body.openapi).toBe('3.0.3');
+    expect(res.body.paths).toHaveProperty('/api/v1/auth/login');
+    expect(res.body.paths).toHaveProperty('/api/v1/appointments/{id}/ics');
+    expect(res.body.paths).toHaveProperty('/api/v1/notifications/me');
+  });
+});
+
 describe('GET /metrics', () => {
   it('exposes Prometheus metrics, outside /api/v1, unauthenticated and never proxied', async () => {
     const res = await request(buildApp()).get('/metrics');

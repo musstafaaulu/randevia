@@ -2,12 +2,14 @@ import cors, { CorsOptions } from 'cors';
 import express, { Application, Request } from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import swaggerUi from 'swagger-ui-express';
 import { env, GatewayConfig } from './config/env';
 import { errorHandler } from './middlewares/errorHandler';
 import { metricsHandler, metricsMiddleware } from './middlewares/metrics';
 import { notFoundHandler } from './middlewares/notFoundHandler';
 import { createRateLimiters } from './middlewares/rateLimiters';
 import { requestId } from './middlewares/requestId';
+import { openapiDocument } from './openapi';
 import { createServiceProxy } from './proxy/createServiceProxy';
 import { createWsProxy } from './proxy/createWsProxy';
 import { SERVICE_ROUTES, ServiceName, serviceUrls } from './proxy/services';
@@ -55,6 +57,12 @@ export function createApp(config: GatewayConfig = env): Application {
   // must never count against the rate limiters below or be forwarded anywhere.
   app.get('/metrics', metricsHandler);
   app.use(metricsMiddleware);
+
+  // One Swagger UI for all three services' public endpoints - see
+  // openapi.yaml, which this gateway owns since every request goes through
+  // it anyway (the individual services are never reachable directly).
+  app.get('/api/docs.json', (_req, res) => res.json(openapiDocument));
+  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openapiDocument));
 
   // No body parser on purpose: request bodies are streamed to the services as-is.
   const limiters = createRateLimiters(config);

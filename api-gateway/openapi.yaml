@@ -1,0 +1,552 @@
+openapi: 3.0.3
+info:
+  title: Randevia API
+  version: '1.0'
+  description: >-
+    Randevia'nın tüm REST API'si, tek bir adresten (API Gateway). Bu belge
+    üç ayrı mikroservisin (auth-service, appointment-service,
+    notification-service) uç noktalarını birleştirir - istemci hiçbirinin
+    adresini bilmez, hepsi buradan geçer. Başarılı yanıtlar
+    `{ "success": true, "data": { ... } }`, hatalar
+    `{ "success": false, "message": "...", "details": { ... } }`
+    biçimindedir.
+servers:
+  - url: http://localhost:3000
+    description: Yerel docker compose
+
+tags:
+  - name: Sistem
+  - name: Kimlik doğrulama
+  - name: Kullanıcılar
+  - name: Doktorlar
+  - name: Randevular
+  - name: Bildirimler
+
+security: []
+
+paths:
+  /api/v1/health:
+    get:
+      tags: [Sistem]
+      summary: Gateway canlılık kontrolü
+      responses:
+        '200':
+          description: Gateway çalışıyor
+  /api/v1/health/services:
+    get:
+      tags: [Sistem]
+      summary: Her servisin durumu ve gecikmesi
+      responses:
+        '200':
+          description: Her şey ayakta
+        '503':
+          description: En az bir servis kapalı
+
+  /api/v1/auth/register:
+    post:
+      tags: [Kimlik doğrulama]
+      summary: Hasta olarak kayıt olur
+      description: Access token döner, refresh token httpOnly çerezine yazılır.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string, minLength: 2, maxLength: 100 }
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8, maxLength: 72 }
+      responses:
+        '201':
+          description: Kayıt başarılı
+        '409':
+          description: E-posta zaten kayıtlı
+
+  /api/v1/auth/login:
+    post:
+      tags: [Kimlik doğrulama]
+      summary: Giriş yapar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200': { description: Giriş başarılı }
+        '401': { description: E-posta veya şifre hatalı }
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [Kimlik doğrulama]
+      summary: Refresh token ile yeni token çifti alır
+      description: >-
+        Refresh token cookie'den veya gövdeden okunur. Kullanılan token tek
+        kullanımlıktır (rotasyon); zaten kullanılmış bir token tekrar
+        gönderilirse çalıntı sayılır ve kullanıcının tüm oturumları kapanır.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200': { description: Oturum yenilendi }
+        '401': { description: Token geçersiz, süresi dolmuş veya çalıntı }
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Kimlik doğrulama]
+      summary: Refresh token'ı iptal eder ve çerezi temizler
+      description: Token yoksa da (iki kez çıkış yapmak gibi) başarılı sayılır.
+      responses:
+        '200': { description: Çıkış yapıldı }
+
+  /api/v1/auth/verify-email:
+    post:
+      tags: [Kimlik doğrulama]
+      summary: Kayıtta gönderilen bağlantıdaki token ile e-postayı doğrular
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        '200': { description: E-posta doğrulandı }
+        '400': { description: Bağlantı geçersiz veya süresi dolmuş }
+
+  /api/v1/auth/resend-verification:
+    post:
+      tags: [Kimlik doğrulama]
+      summary: Doğrulama e-postasını yeniden gönderir
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Yeniden gönderildi }
+        '400': { description: E-posta zaten doğrulanmış }
+
+  /api/v1/auth/forgot-password:
+    post:
+      tags: [Kimlik doğrulama]
+      summary: Şifre sıfırlama bağlantısı gönderir
+      description: >-
+        Hesap var ya da yok, aynı mesajı döner (e-posta sızdırmaz); e-posta
+        yalnızca hesap gerçekten varsa gönderilir.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '200': { description: İstek alındı }
+
+  /api/v1/auth/reset-password:
+    post:
+      tags: [Kimlik doğrulama]
+      summary: Bağlantıdaki token ile şifreyi değiştirir
+      description: Başarılı olursa kullanıcının tüm oturumları kapanır.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, newPassword]
+              properties:
+                token: { type: string }
+                newPassword: { type: string, minLength: 8, maxLength: 72 }
+      responses:
+        '200': { description: Şifre sıfırlandı }
+        '400': { description: Token geçersiz veya süresi dolmuş }
+
+  /api/v1/auth/me:
+    get:
+      tags: [Kullanıcılar]
+      summary: Oturumdaki kullanıcının profili
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Kullanıcı
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      user: { $ref: '#/components/schemas/User' }
+    patch:
+      tags: [Kullanıcılar]
+      summary: Kendi adını günceller
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, minLength: 2, maxLength: 100 }
+      responses:
+        '200': { description: Profil güncellendi }
+
+  /api/v1/auth/me/password:
+    patch:
+      tags: [Kullanıcılar]
+      summary: Şifresini değiştirir
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string }
+                newPassword: { type: string, minLength: 8, maxLength: 72 }
+      responses:
+        '200': { description: Şifre güncellendi }
+        '401': { description: Mevcut şifre hatalı }
+
+  /api/v1/auth/users:
+    get:
+      tags: [Kullanıcılar]
+      summary: Kullanıcıları listeler (admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: role
+          schema: { type: string, enum: [patient, doctor, admin] }
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200': { description: Kullanıcı listesi, sayfalı }
+        '403': { description: Admin değil }
+
+  /api/v1/auth/users/stats:
+    get:
+      tags: [Kullanıcılar]
+      summary: Role göre kullanıcı sayıları (admin)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: İstatistikler }
+        '403': { description: Admin değil }
+
+  /api/v1/auth/users/{id}/role:
+    patch:
+      tags: [Kullanıcılar]
+      summary: Kullanıcının rolünü değiştirir (admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/MongoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role: { type: string, enum: [patient, doctor, admin] }
+      responses:
+        '200': { description: Rol güncellendi }
+        '400': { description: Bir admin kendi rolünü değiştiremez }
+        '403': { description: Admin değil }
+        '404': { description: Kullanıcı bulunamadı }
+
+  /api/v1/doctors:
+    get:
+      tags: [Doktorlar]
+      summary: Doktorları listeler
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Doktor listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      doctors:
+                        type: array
+                        items: { $ref: '#/components/schemas/Doctor' }
+
+  /api/v1/doctors/{id}:
+    get:
+      tags: [Doktorlar]
+      summary: Doktor detayı, müsaitlik aralıkları ve dolu saatler
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/MongoId'
+      responses:
+        '200': { description: Doktor detayı }
+        '404': { description: Doktor bulunamadı }
+
+  /api/v1/doctors/me:
+    post:
+      tags: [Doktorlar]
+      summary: Kendi doktor profilini oluşturur / günceller
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, specialty]
+              properties:
+                name: { type: string, minLength: 2, maxLength: 100 }
+                specialty: { type: string, minLength: 2, maxLength: 100 }
+                bio: { type: string, maxLength: 1000 }
+      responses:
+        '200': { description: Profil oluşturuldu/güncellendi }
+        '403': { description: Doktor değil }
+
+  /api/v1/doctors/me/availability:
+    post:
+      tags: [Doktorlar]
+      summary: Müsaitlik aralığı ekler
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [startTime, endTime]
+              properties:
+                startTime: { type: string, format: date-time }
+                endTime: { type: string, format: date-time }
+      responses:
+        '201': { description: Müsaitlik eklendi }
+        '400': { description: Bitiş saati başlangıçtan önce }
+
+  /api/v1/doctors/me/availability/{id}:
+    delete:
+      tags: [Doktorlar]
+      summary: Kendi müsaitlik aralığını siler
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/MongoId'
+      responses:
+        '200': { description: Silindi }
+        '404': { description: Bulunamadı }
+
+  /api/v1/appointments:
+    post:
+      tags: [Randevular]
+      summary: Randevu talebi oluşturur (hasta)
+      description: '`pending` durumunda oluşturulur; `appointment.created` olayı yayınlanır.'
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [doctorId, date]
+              properties:
+                doctorId: { type: string }
+                date: { type: string, format: date-time }
+      responses:
+        '201': { description: Randevu talep edildi }
+        '409': { description: Doktorun bu tarih/saatte zaten randevusu var }
+
+  /api/v1/appointments/me:
+    get:
+      tags: [Randevular]
+      summary: Kullanıcının randevuları (hasta veya doktor)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Randevu listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      appointments:
+                        type: array
+                        items: { $ref: '#/components/schemas/Appointment' }
+
+  /api/v1/appointments/stats:
+    get:
+      tags: [Randevular]
+      summary: Durum dağılımı, toplam sayılar ve 14 günlük trend (admin)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: İstatistikler }
+        '403': { description: Admin değil }
+
+  /api/v1/appointments/{id}/confirm:
+    patch:
+      tags: [Randevular]
+      summary: Randevuyu onaylar (doktor)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/MongoId'
+      responses:
+        '200': { description: Randevu onaylandı }
+        '400': { description: Sadece onay bekleyen randevular onaylanabilir }
+        '403': { description: Kendi randevusu değil }
+
+  /api/v1/appointments/{id}/cancel:
+    patch:
+      tags: [Randevular]
+      summary: Randevuyu iptal eder (hasta)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/MongoId'
+      responses:
+        '200': { description: Randevu iptal edildi }
+        '403': { description: Kendi randevusu değil }
+
+  /api/v1/appointments/{id}/ics:
+    get:
+      tags: [Randevular]
+      summary: Randevuyu takvim dosyası (.ics) olarak indirir
+      description: Yalnızca randevunun kendi hastası veya doktoru indirebilir.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/MongoId'
+      responses:
+        '200':
+          description: iCalendar (RFC 5545) dosyası
+          content:
+            text/calendar: { schema: { type: string } }
+        '403': { description: Sahibi değil }
+        '404': { description: Randevu bulunamadı }
+
+  /api/v1/notifications/me:
+    get:
+      tags: [Bildirimler]
+      summary: Kullanıcının bildirimleri, en yeniden eskiye, sayfalı
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: Bildirim listesi + okunmamış sayısı
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      notifications:
+                        type: array
+                        items: { $ref: '#/components/schemas/Notification' }
+                      unreadCount: { type: integer }
+
+  /api/v1/notifications/read-all:
+    patch:
+      tags: [Bildirimler]
+      summary: Tüm okunmamış bildirimleri okundu işaretler
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: İşaretlendi }
+
+  /api/v1/notifications/{id}/read:
+    patch:
+      tags: [Bildirimler]
+      summary: Tek bir bildirimi okundu işaretler
+      description: Yalnızca kendi bildirimi.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/MongoId'
+      responses:
+        '200': { description: İşaretlendi }
+        '404': { description: Bildirim bulunamadı }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    MongoId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+  schemas:
+    User:
+      type: object
+      properties:
+        _id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        role: { type: string, enum: [patient, doctor, admin] }
+        emailVerified: { type: boolean }
+    Doctor:
+      type: object
+      properties:
+        _id: { type: string }
+        userId: { type: string }
+        name: { type: string }
+        specialty: { type: string }
+        bio: { type: string }
+    Appointment:
+      type: object
+      properties:
+        _id: { type: string }
+        patientId: { type: string }
+        doctorId: { type: string }
+        date: { type: string, format: date-time }
+        status: { type: string, enum: [pending, confirmed, cancelled, completed] }
+    Notification:
+      type: object
+      properties:
+        _id: { type: string }
+        recipientId: { type: string }
+        recipientRole: { type: string, enum: [patient, doctor] }
+        type:
+          type: string
+          enum:
+            - appointment.created
+            - appointment.confirmed
+            - appointment.cancelled
+            - appointment.reminder
+        title: { type: string }
+        message: { type: string }
+        status: { type: string, enum: [pending, sent] }
+        read: { type: boolean }
