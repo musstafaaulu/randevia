@@ -2,6 +2,7 @@
 
 <p align="center">
   <a href="https://github.com/musstafaaulu/randevia/actions/workflows/ci.yml"><img src="https://github.com/musstafaaulu/randevia/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/musstafaaulu/randevia/actions/workflows/codeql.yml"><img src="https://github.com/musstafaaulu/randevia/actions/workflows/codeql.yml/badge.svg" alt="CodeQL" /></a>
   <img src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Node.js-22-339933?logo=node.js&logoColor=white" alt="Node.js" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black" alt="React" />
@@ -479,7 +480,11 @@ Her servis, gerçek MongoDB ve RabbitMQ'ya karşı çalışan entegrasyon testle
 
 **Web arayüzü uçtan uca testleri** (Playwright, gerçek `docker compose` sistemine karşı, **7/7** ✅): [`realtime.spec.ts`](web/e2e/realtime.spec.ts) iki ayrı tarayıcı bağlamı açar (hasta ve doktor), hasta gerçek arayüz üzerinden bir doktora randevu alır ve doktorun ekranında **sayfa hiç yenilenmeden** bildirim zilinin, okunmamış sayısının ve toast mesajının anlık olarak belirdiğini doğrular; [`password-reset.spec.ts`](web/e2e/password-reset.spec.ts) "şifremi unuttum" formunu gönderir, **gerçek SMTP ile MailHog'a gelen e-postayı MailHog'un kendi API'sinden okur**, oradaki bağlantıdan token'ı çıkarır ve şifreyi sıfırlayıp yeni şifreyle giriş yapar — mock değil, backend'in gerçekten gönderdiği e-posta; [`ics-download.spec.ts`](web/e2e/ics-download.spec.ts) bir randevuyu onaylatır ve "Takvime Ekle" düğmesinin gerçek bir `.ics` dosyası indirdiğini doğrular. Diğerleri: `doctor-search`, `profile`, `cancel-appointment`, `theme-toggle`. Bkz. [`web/e2e/README.md`](web/e2e/README.md).
 
-**CI (GitHub Actions, [`.github/workflows/ci.yml`](.github/workflows/ci.yml)):** her push ve pull request'te dört backend servisi (Mongo + RabbitMQ + Redis servis konteynerleriyle) ve web için lint, tip kontrolü/derleme ve testler çalışır; ayrıca beş Dockerfile'ın da hâlâ build olduğu ayrıca doğrulanır.
+**CI (GitHub Actions, [`.github/workflows/ci.yml`](.github/workflows/ci.yml)):** her push ve pull request'te dört backend servisi (Mongo + RabbitMQ + Redis servis konteynerleriyle) ve web için lint, tip kontrolü/derleme ve testler çalışır; ayrıca beş Dockerfile'ın da hâlâ build olduğu ayrıca doğrulanır. Testler `--coverage` ile çalışır ve her projenin kendi `coverageThreshold`'u (jest) / `coverage.thresholds`'u (vitest) altına düşerse CI kırmızı olur — eşikler, bir gerçek düşüşü yakalayacak ama test çıktısındaki normal dalgalanmaya kırılgan olmayacak şekilde, şu anki ölçülen kapsamın biraz altında seçildi (bkz. her `jest.config.js` / `web/vitest.config.ts`'teki yorum).
+
+**CodeQL** ([`.github/workflows/codeql.yml`](.github/workflows/codeql.yml)): her push/PR'da ve haftalık olarak (zamanlanmış) JavaScript/TypeScript için statik güvenlik analizi çalışır, bulgular GitHub'ın Security sekmesine düşer.
+
+**Dependabot** ([`.github/dependabot.yml`](.github/dependabot.yml)): beş npm projesi, beş Docker imajı ve GitHub Actions için haftalık bağımlılık güncelleme PR'ları açar; `devDependencies` güncellemeleri tek bir PR'da gruplanır.
 
 Canlı sistem üzerinde ayrıca elle doğrulanan senaryolar:
 

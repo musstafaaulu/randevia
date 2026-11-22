@@ -66,9 +66,9 @@ jobs:
         working-directory: ${{ matrix.service }}
         run: npm run build
 
-      - name: Test
+      - name: Test (with coverage threshold)
         working-directory: ${{ matrix.service }}
-        run: npm test
+        run: npm test -- --coverage
 
   web:
     name: web
@@ -94,9 +94,9 @@ jobs:
         working-directory: web
         run: npm run build
 
-      - name: Unit/component tests
+      - name: Unit/component tests (with coverage threshold)
         working-directory: web
-        run: npm test
+        run: npm test -- --coverage
 
   docker-build:
     name: docker build (${{ matrix.service }})
