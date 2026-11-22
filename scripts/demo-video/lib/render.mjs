@@ -81,19 +81,23 @@ export function outroCardHtml({ developerLabel }) {
   </body></html>`;
 }
 
-// A lower-third caption bar, screenshotted with a transparent background and
-// later overlaid onto the recorded clip for its full duration via ffmpeg.
+// A subtitle bar: a semi-transparent dark strip across the bottom of the
+// frame with one large, centered line of narration - screenshotted with a
+// transparent background and time-windowed onto the recorded clip via
+// ffmpeg's overlay `enable` expression (see 07-assemble.mjs), synced to the
+// real timestamp it was logged at during recording.
 export function captionHtml({ title, subtitle }) {
   return `<!doctype html><html><head><meta charset="utf-8" /><style>
     * { margin:0; padding:0; box-sizing:border-box; }
     html,body { width:1920px; height:1080px; font-family:${FONT_STACK}; background:transparent; }
     .bar {
-      position:absolute; left:0; right:0; bottom:0; padding:30px 64px 44px;
-      background: linear-gradient(to top, rgba(2,6,23,.92) 0%, rgba(2,6,23,.75) 55%, rgba(2,6,23,0) 100%);
+      position:absolute; left:0; right:0; bottom:0; padding:28px 90px 50px;
+      display:flex; flex-direction:column; align-items:center; text-align:center;
+      background: linear-gradient(to top, rgba(2,6,23,.88) 0%, rgba(2,6,23,.82) 60%, rgba(2,6,23,0) 100%);
     }
-    .accent { width:56px; height:5px; border-radius:3px; background:#2dd4bf; margin-bottom:14px; }
-    h2 { font-size:38px; font-weight:700; color:#f8fafc; letter-spacing:-0.3px; }
-    p { font-size:23px; color:#cbd5e1; margin-top:8px; font-weight:400; }
+    .accent { width:64px; height:5px; border-radius:3px; background:#2dd4bf; margin-bottom:16px; }
+    h2 { font-size:46px; line-height:1.25; font-weight:700; color:#f8fafc; letter-spacing:-0.3px; text-shadow: 0 2px 10px rgba(0,0,0,.5); }
+    p { font-size:25px; color:#cbd5e1; margin-top:10px; font-weight:400; }
   </style></head><body>
     <div class="bar">
       <div class="accent"></div>

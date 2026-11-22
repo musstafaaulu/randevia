@@ -23,7 +23,7 @@ async function loopImageToVideo(pngPath, outName, seconds) {
     '-loop', '1',
     '-i', pngPath,
     '-t', String(seconds),
-    '-vf', `fps=30,format=yuv420p,fade=t=in:st=0:d=0.5,fade=t=out:st=${seconds - 0.5}:d=0.5`,
+    '-vf', `fps=60,format=yuv420p,fade=t=in:st=0:d=0.5,fade=t=out:st=${seconds - 0.5}:d=0.5`,
     '-c:v', 'libx264',
     `clips/${outName}`,
   ]);

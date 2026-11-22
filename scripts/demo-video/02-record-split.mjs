@@ -1,10 +1,13 @@
 // The centerpiece scene: two half-width recordings (patient left, doctor
 // right), started together so their timelines line up, later combined
-// side-by-side with ffmpeg's hstack filter (see 05-assemble.mjs).
+// side-by-side with ffmpeg's hstack filter (see 07-assemble.mjs). A single
+// shared timeline (both contexts are created back to back on the same
+// process clock) drives the burned-in captions.
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium, humanClick, humanType } from './lib/browser.mjs';
 import { WORK_DIR } from './lib/ffmpeg.mjs';
+import { createTimeline } from './lib/timeline.mjs';
 
 const PATIENT = { email: 'hasta@randevia.local', password: 'Demo12345!' };
 const DOCTOR = { email: 'doktor@randevia.local', password: 'Demo12345!' };
@@ -36,6 +39,7 @@ async function main() {
     viewport: VIEWPORT,
     recordVideo: { dir: doctorTmp, size: VIEWPORT },
   });
+  const timeline = createTimeline();
   const patient = await patientCtx.newPage();
   const doctor = await doctorCtx.newPage();
 
@@ -44,51 +48,69 @@ async function main() {
   await Promise.all([login(patient, PATIENT.email, PATIENT.password), login(doctor, DOCTOR.email, DOCTOR.password)]);
 
   await doctor.waitForTimeout(400);
-  // Doctor just sits on the doctors list - the bell in the top nav is on
-  // every authenticated page, which is all a live notification needs.
-  await doctor.waitForTimeout(600);
-
   await humanClick(patient, patient.locator('.doctor-card', { hasText: 'Kardiyoloji' }).first());
   await patient.waitForURL('**/doktorlar/*');
-  await patient.waitForTimeout(1200);
+  await patient.waitForTimeout(600);
+  timeline.log(
+    'Hasta, doktorun haftalık müsaitlik takviminde uygun bir saat arıyor',
+    'The patient looks for an open slot in the doctor’s weekly calendar',
+  );
+  await patient.waitForTimeout(2600);
 
   const freeSlot = patient.locator('.slot-item', { hasNotText: 'Dolu' }).first();
   await freeSlot.scrollIntoViewIfNeeded();
-  await patient.waitForTimeout(600);
+  await patient.waitForTimeout(500);
+  const slotTime = (await freeSlot.locator('strong').first().textContent().catch(() => null))?.trim();
+  timeline.log(
+    slotTime ? `Hasta, ${slotTime} için randevu talebi gönderiyor` : 'Hasta randevu talebi gönderiyor',
+    slotTime ? `The patient sends an appointment request for ${slotTime}` : 'The patient sends an appointment request',
+  );
   await humanClick(patient, freeSlot.getByRole('button', { name: 'Randevu Al' }));
 
   await Promise.all([
     patient.getByText('Randevu talebiniz alındı').waitFor(),
     doctor.locator('.bell-badge').waitFor({ timeout: 10_000 }),
   ]);
-  await patient.waitForTimeout(600);
+  timeline.log(
+    'Doktorun ekranına bildirim, sayfa yenilenmeden anında düşüyor',
+    "The notification lands on the doctor's screen instantly - no page reload",
+  );
+  await patient.waitForTimeout(3200);
 
   // Patient moves to "my appointments" to watch the pending -> confirmed
   // transition live, without a reload.
   await humanClick(patient, patient.getByRole('link', { name: 'Randevularım' }));
   await patient.waitForURL('**/randevularim');
-  await patient.waitForTimeout(1000);
+  await patient.waitForTimeout(600);
 
   // Doctor notices the live bell update and opens it.
+  timeline.log(
+    'Doktor bildirim zilini açıp talebi görüyor',
+    'The doctor opens the bell and sees the request',
+  );
   await humanClick(doctor, doctor.locator('.bell-button'));
   await doctor.waitForTimeout(1200);
   await doctor.locator('.bell-dropdown').getByText('Yeni randevu talebi').first().waitFor();
-  await doctor.waitForTimeout(1000);
+  await doctor.waitForTimeout(2200);
 
   await humanClick(doctor, doctor.getByRole('link', { name: 'Randevularım' }));
   await doctor.waitForURL('**/randevularim');
-  await doctor.waitForTimeout(1000);
+  await doctor.waitForTimeout(800);
 
   const approveButton = doctor.getByRole('button', { name: 'Onayla' }).first();
   await approveButton.scrollIntoViewIfNeeded();
+  timeline.log('Doktor randevuyu onaylıyor', 'The doctor confirms the appointment');
   await humanClick(doctor, approveButton);
-  await doctor.waitForTimeout(400);
+  await doctor.waitForTimeout(300);
   await humanClick(doctor, doctor.getByRole('alertdialog').getByRole('button', { name: 'Onayla' }));
 
   // The patient side is the payoff: a live toast + status flip, no reload.
   await patient.locator('.status-badge.status-confirmed').first().waitFor({ timeout: 10_000 });
-  await patient.waitForTimeout(2200);
-  await doctor.waitForTimeout(500);
+  timeline.log(
+    'Hastaya anında onay bildirimi geliyor, randevu durumu canlı güncelleniyor',
+    "The patient gets an instant confirmation notification - the status updates live",
+  );
+  await patient.waitForTimeout(3600);
 
   await patientCtx.close();
   await doctorCtx.close();
@@ -102,7 +124,11 @@ async function main() {
     fs.copyFileSync(path.join(tmp, files[0]), path.join(RAW_DIR, `02-split-${name}.webm`));
     fs.rmSync(tmp, { recursive: true, force: true });
   }
-  console.log('recorded 02-split-patient.webm + 02-split-doctor.webm');
+  fs.writeFileSync(
+    path.join(RAW_DIR, '02-split-screen-rezervasyon-events.json'),
+    JSON.stringify(timeline.events, null, 2),
+  );
+  console.log(`recorded 02-split-patient.webm + 02-split-doctor.webm (${timeline.events.length} caption events)`);
 }
 
 main().catch((err) => {
