@@ -38,8 +38,8 @@ app.use(
 
 app.use(
   rateLimit({
-    windowMs: 15 * 60 * 1000,
-    limit: 100,
+    windowMs: env.RATE_LIMIT_WINDOW_MS,
+    limit: env.RATE_LIMIT_MAX,
     standardHeaders: true,
     legacyHeaders: false,
     message: { success: false, message: 'Çok fazla istek gönderdiniz, lütfen biraz sonra tekrar deneyin' },

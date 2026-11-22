@@ -31,6 +31,8 @@ const baseSchema = z.object({
   // Shared secret for the service-to-service /internal endpoints (currently
   // just notification-service looking up a recipient's e-mail address).
   INTERNAL_SERVICE_TOKEN: z.string().min(1, 'INTERNAL_SERVICE_TOKEN is required'),
+  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60 * 1000),
+  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
 });
 
 // Placeholder secrets like "changeme" must never reach production: anyone who

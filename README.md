@@ -493,6 +493,51 @@ Testleri çalıştırmak için (RabbitMQ `localhost:5672` erişilebilir olmalı;
 cd auth-service && npm test
 ```
 
+### k6 Yük Testi
+
+[`scripts/k6/load-test.js`](scripts/k6/load-test.js), giriş yapmış bir hastanın gerçekte izlediği okuma-ağırlıklı yolu (`/health`, `/doctors`, `/auth/me`, `/notifications/me`) **gateway üzerinden** yükler: `setup()` içinde bir kez giriş yapıp o tek access token'ı tüm sanal kullanıcılar (VU) arasında paylaşır (her iterasyonda giriş yapmak, gateway'in giriş rate limitine (`AUTH_RATE_LIMIT_MAX`) anında çarpar ve servisin gerçek kapasitesi yerine 429'lar ölçülür). Yerelde k6 kurulu değildi; `grafana/k6` imajı, docker-compose'un ağına katılarak kullanıldı:
+
+```bash
+docker run --rm --network randevia_default \
+  -v "$(pwd)/scripts/k6:/scripts" \
+  -e BASE_URL=http://randevia-api-gateway:3000 \
+  grafana/k6 run /scripts/load-test.js
+```
+
+**İlk koşu, hiçbir ayar değiştirilmeden (üretim varsayılanları):**
+
+| Uç nokta | Başarılı | Başarısız |
+|---|---:|---:|
+| `GET /health` | 400/400 | 0 |
+| `GET /doctors` | 100/400 | 300 |
+| `GET /auth/me` | 99/400 | 301 |
+| `GET /notifications/me` | 100/400 | 300 |
+| **Toplam** | **699/1600 (%43,7)** | **901 (%56,3)** |
+
+Bu, gateway'in kendi genel limitinden (`RATE_LIMIT_MAX`) kaynaklanmıyor — onu bu koşuda değiştirmemiştim bile. Test, daha önce fark edilmemiş gerçek bir mimari sınırı ortaya çıkardı: **auth-service, appointment-service ve notification-service'in her birinde, gateway'inkinden bağımsız, sabit (kod içine gömülü) kendi IP başına limiti (100 istek / 15 dk) vardı.** Tüm istemciler gateway üzerinden geçtiği için bu servisler trafiği hep *aynı* IP'den (gateway container'ı) görür; dolayısıyla bu 100'lük limit tek bir kullanıcıya değil, **o anda sistemi kullanan herkese birden** uygulanıyordu — 10 eşzamanlı kullanıcı bunu saniyeler içinde tüketti. Bunu, her üç servisin limitini de gateway'inki gibi ortam değişkenine taşıyarak (`RATE_LIMIT_MAX`/`RATE_LIMIT_WINDOW_MS`, varsayılan hâlâ 100/15dk — davranış değişmedi) düzelttim; production'da gerçek trafiğe göre yükseltilebilir hâle geldi.
+
+**İkinci koşu, gerçek kapasiteyi ölçmek için limitler geçici olarak yükseltilmiş (test sonunda üretim varsayılanlarına geri alındı):**
+
+```bash
+RATE_LIMIT_MAX=100000 SERVICE_RATE_LIMIT_MAX=100000 docker compose up -d \
+  api-gateway auth-service appointment-service notification-service
+# ... k6 koşusu ...
+docker compose up -d api-gateway auth-service appointment-service notification-service
+```
+
+| Metrik | Değer |
+|---|---:|
+| Toplam istek | 1577 |
+| Başarısız istek | 0 (**%0**) |
+| İstek/sn (ortalama) | 31,3 |
+| Gecikme — ortalama | 6,22 ms |
+| Gecikme — p90 | 10,59 ms |
+| Gecikme — p95 | 13,71 ms (eşik: <500 ms ✅) |
+| Gecikme — maksimum | 74,58 ms |
+| Tamamlanan iterasyon | 394/394 |
+
+10 VU, 50 saniyelik rampalı yükte (0→10→0) gateway + üç servis, hiçbir hata vermeden, p95 13,71 ms gecikmeyle yanıt verdi — darboğaz test donanımı veya kod yolu değil, yukarıdaki rate limit etkileşimiydi. `docker compose down -v` → `up --build` → `seed-demo.mjs` ile sıfırdan kurulan sistemde doğrulandı; test sonrası `scripts/e2e.mjs` 34/34 geçti.
+
 ---
 
 ## Tasarım Kararları

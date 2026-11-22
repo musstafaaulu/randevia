@@ -18,6 +18,8 @@ const baseSchema = z.object({
   // req.ip and the rate limiter use the client IP from X-Forwarded-For.
   TRUST_PROXY: z.coerce.number().int().min(0).default(0),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'debug']).default('info'),
+  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60 * 1000),
+  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
 });
 
 // Placeholder secrets like "changeme" must never reach production: anyone who

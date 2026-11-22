@@ -27,6 +27,8 @@ const baseSchema = z.object({
   // address, and the shared secret that guards it.
   AUTH_SERVICE_URL: z.string().default('http://localhost:4000'),
   INTERNAL_SERVICE_TOKEN: z.string().min(1, 'INTERNAL_SERVICE_TOKEN is required'),
+  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60 * 1000),
+  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
 });
 
 // Placeholder secrets like "changeme" must never reach production: anyone who
