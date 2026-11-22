@@ -40,6 +40,7 @@ Sistem; tek giriş noktası olan bir **API Gateway**, kendi veritabanına sahip 
 - [Örnek Akış](#örnek-akış)
 - [Testler ve Sonuçlar](#testler-ve-sonuçlar)
 - [Tasarım Kararları](#tasarım-kararları)
+- [Mimari Karar Kayıtları (ADR)](#mimari-karar-kayıtları-adr)
 - [Proje Yapısı](#proje-yapısı)
 - [Yol Haritası](#yol-haritası)
 
@@ -673,6 +674,18 @@ Doktor detay sayfasındaki "müsait saatler" listesi, müsaitlik aralıklarında
 
 ---
 
+## Mimari Karar Kayıtları (ADR)
+
+Birden fazla servisi, veri modelini veya güvenlik sınırını etkileyen,
+gerçek bir alternatifi olan mimari kararlar [`docs/adr/`](docs/adr/)
+altında kayıtlı: database-per-service, API Gateway'in tek giriş noktası
+olması, transactional outbox, token saklama/rotasyon, Socket.io oda modeli,
+doktor adı denormalizasyonu, gözlemlenebilirlik yığını ve servis bazlı rate
+limitin yapılandırılabilir kılınması. Her biri bağlam, karar ve kabul edilen
+artı/eksileri içerir — bkz. [`docs/adr/README.md`](docs/adr/README.md).
+
+---
+
 ## Proje Yapısı
 
 ```
@@ -683,11 +696,14 @@ randevia/
 ├── appointment-service/    # Doktorlar ve randevular (port 4001)
 ├── notification-service/   # Bildirimler + Socket.io sunucusu (port 4002)
 ├── web/                    # React + Vite web arayüzü (port 8080, nginx)
-├── docs/screenshots/       # README'deki ekran görüntüleri
+├── docs/
+│   ├── screenshots/        # README'deki ekran görüntüleri
+│   └── adr/                # Mimari karar kayıtları (ADR)
 ├── scripts/
 │   ├── e2e.mjs             # Uçtan uca REST testi
 │   ├── seed-demo.mjs       # Demo hesapları ve örnek veri
-│   └── clean-test-data.mjs # @e2e.test test verisini temizler
+│   ├── clean-test-data.mjs # @e2e.test test verisini temizler
+│   └── k6/load-test.js     # k6 yük testi
 ├── docker-compose.yml      # Tüm sistem: 5 servis + 3 MongoDB + RabbitMQ + Redis
 └── .env.example            # docker compose ayarları
 ```
