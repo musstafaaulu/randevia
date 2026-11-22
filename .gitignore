@@ -14,3 +14,6 @@ npm-debug.log*
 
 # Local working notes
 NEXT_STEPS.md
+
+# Generated demo video (large binaries; scripts/demo-video/ reproduces it)
+docs/demo-video/

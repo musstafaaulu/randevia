@@ -714,7 +714,8 @@ randevia/
 │   ├── e2e.mjs             # Uçtan uca REST testi
 │   ├── seed-demo.mjs       # Demo hesapları ve örnek veri
 │   ├── clean-test-data.mjs # @e2e.test test verisini temizler
-│   └── k6/load-test.js     # k6 yük testi
+│   ├── k6/load-test.js     # k6 yük testi
+│   └── demo-video/         # Tanıtım videosu üretim pipeline'ı (bkz. kendi README'si)
 ├── docker-compose.yml      # Tüm sistem: 5 servis + 3 MongoDB + RabbitMQ + Redis
 └── .env.example            # docker compose ayarları
 ```
