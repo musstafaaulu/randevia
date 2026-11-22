@@ -1,17 +1,20 @@
 import { useState } from 'react';
-import { Link, NavLink, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { EmailVerificationBanner } from './EmailVerificationBanner';
 import { NotificationBell } from './NotificationBell';
 import { ThemeToggle } from './ThemeToggle';
 import { ToastStack } from './ToastStack';
+import { TopLoadingBar } from './TopLoadingBar';
 
 export function Layout() {
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const location = useLocation();
 
   return (
     <div className="app-shell">
+      <TopLoadingBar />
       <header className="top-nav">
         <div className="top-nav-inner">
           <Link to="/" className="brand" onClick={() => setMenuOpen(false)}>
@@ -79,7 +82,9 @@ export function Layout() {
       <EmailVerificationBanner />
 
       <main className="app-content">
-        <Outlet />
+        <div className="page-transition" key={location.pathname}>
+          <Outlet />
+        </div>
       </main>
 
       <ToastStack />

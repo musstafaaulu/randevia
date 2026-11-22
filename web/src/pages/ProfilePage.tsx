@@ -3,6 +3,7 @@ import { changePassword, updateProfile } from '../api/auth';
 import { ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { FieldError } from '../components/FieldError';
+import { ButtonLabel } from '../components/ButtonLabel';
 
 export function ProfilePage() {
   const { user, refreshUser } = useAuth();
@@ -101,7 +102,7 @@ export function ProfilePage() {
             <input type="email" value={user.email} disabled />
           </label>
           <button className="primary-button" type="submit" disabled={savingProfile}>
-            {savingProfile ? 'Kaydediliyor…' : 'Profili Kaydet'}
+            <ButtonLabel busy={savingProfile} busyText="Kaydediliyor…" idleText="Profili Kaydet" />
           </button>
         </form>
       </section>
@@ -148,7 +149,7 @@ export function ProfilePage() {
             <FieldError message={confirmPasswordError} />
           </label>
           <button className="primary-button" type="submit" disabled={savingPassword}>
-            {savingPassword ? 'Güncelleniyor…' : 'Şifreyi Güncelle'}
+            <ButtonLabel busy={savingPassword} busyText="Güncelleniyor…" idleText="Şifreyi Güncelle" />
           </button>
         </form>
       </section>

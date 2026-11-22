@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../api/client';
 import { AuthHero } from '../components/AuthHero';
 import { FieldError } from '../components/FieldError';
+import { ButtonLabel } from '../components/ButtonLabel';
 import { isValidEmail } from '../utils/validators';
 
 type Touched = { name?: boolean; email?: boolean; password?: boolean };
@@ -106,7 +107,7 @@ export function RegisterPage() {
             type="submit"
             disabled={submitting || hasErrors}
           >
-            {submitting ? 'Kayıt oluşturuluyor…' : 'Kayıt Ol'}
+            <ButtonLabel busy={submitting} busyText="Kayıt oluşturuluyor…" idleText="Kayıt Ol" />
           </button>
 
           <p className="auth-footer">

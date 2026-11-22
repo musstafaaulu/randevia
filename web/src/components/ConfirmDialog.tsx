@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { ButtonLabel } from './ButtonLabel';
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -59,7 +60,7 @@ export function ConfirmDialog({
             onClick={onConfirm}
             disabled={busy}
           >
-            {busy ? 'İşleniyor…' : confirmLabel}
+            <ButtonLabel busy={busy} busyText="İşleniyor…" idleText={confirmLabel} />
           </button>
         </div>
       </div>

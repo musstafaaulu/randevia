@@ -4,6 +4,7 @@ import { resetPassword } from '../api/auth';
 import { ApiError } from '../api/client';
 import { AuthHero } from '../components/AuthHero';
 import { FieldError } from '../components/FieldError';
+import { ButtonLabel } from '../components/ButtonLabel';
 
 export function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
@@ -90,7 +91,7 @@ export function ResetPasswordPage() {
               </label>
 
               <button className="primary-button full-width" type="submit" disabled={submitting}>
-                {submitting ? 'Kaydediliyor…' : 'Şifreyi Güncelle'}
+                <ButtonLabel busy={submitting} busyText="Kaydediliyor…" idleText="Şifreyi Güncelle" />
               </button>
             </form>
           )}

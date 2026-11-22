@@ -3,6 +3,7 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../api/client';
 import { AuthHero } from '../components/AuthHero';
+import { ButtonLabel } from '../components/ButtonLabel';
 import { FieldError } from '../components/FieldError';
 import { isValidEmail } from '../utils/validators';
 
@@ -85,7 +86,7 @@ export function LoginPage() {
           </p>
 
           <button className="primary-button full-width" type="submit" disabled={submitting}>
-            {submitting ? 'Giriş yapılıyor…' : 'Giriş Yap'}
+            <ButtonLabel busy={submitting} busyText="Giriş yapılıyor…" idleText="Giriş Yap" />
           </button>
 
           <p className="auth-footer">

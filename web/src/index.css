@@ -1385,6 +1385,84 @@ textarea {
   }
 }
 
+/* --------------------------------------------------- top loading bar -- */
+
+.top-loading-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 0%;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-primary-dark));
+  z-index: 2000;
+  animation: top-loading-bar-fill 0.7s ease-out forwards;
+}
+
+@keyframes top-loading-bar-fill {
+  0% {
+    width: 0%;
+    opacity: 1;
+  }
+  70% {
+    width: 85%;
+    opacity: 1;
+  }
+  100% {
+    width: 100%;
+    opacity: 0;
+  }
+}
+
+/* ----------------------------------------------------- page transition -- */
+
+.page-transition {
+  animation: page-fade-in 0.35s ease-out;
+}
+
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* -------------------------------------------------------- button busy -- */
+
+.button-busy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.button-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  opacity: 0.85;
+  animation: spin 0.7s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .top-loading-bar {
+    animation: none;
+    opacity: 0;
+  }
+
+  .page-transition {
+    animation: none;
+  }
+
+  .button-spinner {
+    animation: none;
+  }
+}
+
 /* ------------------------------------------------------------ mobile -- */
 
 @media (max-width: 760px) {
