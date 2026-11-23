@@ -1,6 +1,9 @@
 process.env.NODE_ENV = 'test';
 process.env.PORT = '4002';
-process.env.MONGO_URI = 'mongodb://localhost:27017/randevia_notification_test';
+// "localhost" resolves to the IPv6 loopback first on some setups, where
+// mongod/Docker's port mapping doesn't listen - the IPv4 literal avoids a
+// slow (or outright failing) DNS/connect path.
+process.env.MONGO_URI = 'mongodb://127.0.0.1:27017/randevia_notification_test';
 process.env.JWT_ACCESS_SECRET = 'test-access-secret';
 process.env.INTERNAL_SERVICE_TOKEN = 'test-internal-service-token';
 process.env.RABBITMQ_URL = 'amqp://guest:guest@localhost:5672';
