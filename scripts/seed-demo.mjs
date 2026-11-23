@@ -11,6 +11,14 @@
 // uses). Safe to run again: existing demo accounts are logged into instead
 // of re-registered, and availability windows are only added if none exist
 // in the future yet.
+//
+// 12 doctors x ~10 upcoming weekdays x 2 windows (morning/afternoon, split
+// around the lunch break) adds up to several hundred requests - on a fresh
+// system that's still under the gateway's default RATE_LIMIT_MAX (300 per
+// 15 min), but if you've already made other requests in this window (or are
+// re-seeding right after another script ran), raise it first:
+//
+//   RATE_LIMIT_MAX=5000 docker compose up -d --no-deps api-gateway
 
 import { readFileSync } from 'node:fs';
 
@@ -50,17 +58,57 @@ const DOCTOR = {
 
 // Not documented as a login account anywhere - these only exist to make the
 // doctors list look like a real, populated system instead of a single entry.
+// 11 more alongside DOCTOR above: 12 doctors total across 12 specialties.
 const EXTRA_DOCTORS = [
   { name: 'Dr. Elif Arslan', specialty: 'Dahiliye', bio: 'İç hastalıkları uzmanı.' },
   { name: 'Dr. Mert Kaya', specialty: 'Ortopedi ve Travmatoloji', bio: 'Ortopedi uzmanı.' },
   { name: 'Dr. Zeynep Çelik', specialty: 'Göz Hastalıkları', bio: 'Göz hastalıkları uzmanı.' },
   { name: 'Dr. Can Yıldız', specialty: 'Çocuk Sağlığı ve Hastalıkları', bio: 'Pediatri uzmanı.' },
   { name: 'Dr. Ayşe Demir', specialty: 'Nöroloji', bio: 'Nöroloji uzmanı.' },
+  { name: 'Dr. Burak Şahin', specialty: 'Kulak Burun Boğaz', bio: 'KBB uzmanı.' },
+  { name: 'Dr. Selin Aydın', specialty: 'Dermatoloji', bio: 'Cildiye uzmanı.' },
+  { name: 'Dr. Emre Koç', specialty: 'Psikiyatri', bio: 'Psikiyatri uzmanı.' },
+  { name: 'Dr. Deniz Yılmaz', specialty: 'Kadın Hastalıkları ve Doğum', bio: 'Kadın doğum uzmanı.' },
+  { name: 'Dr. Onur Aksoy', specialty: 'Üroloji', bio: 'Üroloji uzmanı.' },
+  { name: 'Dr. Gamze Öztürk', specialty: 'Genel Cerrahi', bio: 'Genel cerrahi uzmanı.' },
 ].map((doctor, index) => ({
   ...doctor,
   email: `demo-doktor-${index + 1}@randevia.local`,
   password: DEMO_PASSWORD,
 }));
+
+// Turkey has used a fixed UTC+03:00 offset (no DST) since 2016, so Istanbul
+// wall-clock time is always UTC time plus 3 hours - matches the business
+// hours rule enforced server-side (appointment-service/src/utils/businessHours.ts).
+const TZ_OFFSET_HOURS = 3;
+const BUSINESS_DAYS = 14;
+
+function istanbulWeekdayOf(date) {
+  return new Date(date.getTime() + TZ_OFFSET_HOURS * 60 * 60 * 1000).getUTCDay();
+}
+
+function atIstanbulTime(date, hour, minute) {
+  const shifted = new Date(date.getTime() + TZ_OFFSET_HOURS * 60 * 60 * 1000);
+  const utcMs = Date.UTC(
+    shifted.getUTCFullYear(),
+    shifted.getUTCMonth(),
+    shifted.getUTCDate(),
+    hour - TZ_OFFSET_HOURS,
+    minute,
+  );
+  return new Date(utcMs);
+}
+
+// Every weekday in the next BUSINESS_DAYS days (today excluded), as plain
+// Date objects (midnight UTC, only used to carry the calendar day forward).
+function upcomingWeekdays() {
+  const days = [];
+  for (let i = 1; i <= BUSINESS_DAYS; i += 1) {
+    const day = new Date(Date.now() + i * 24 * 60 * 60 * 1000);
+    if (istanbulWeekdayOf(day) !== 0 && istanbulWeekdayOf(day) !== 6) days.push(day);
+  }
+  return days;
+}
 
 async function call(method, path, { token, body } = {}) {
   const res = await fetch(`${GATEWAY}${path}`, {
@@ -86,7 +134,54 @@ async function registerOrLogin({ name, email, password }) {
   return login.json.data;
 }
 
-async function setupDoctor(doctorInput, adminToken) {
+// Adds a full working day's worth of availability (09:00-12:00 and
+// 13:00-17:00 Istanbul, split around the lunch break - a single 09:00-17:00
+// window would be rejected, see businessHours.ts) for every upcoming
+// weekday, and books a couple of slots so the calendar shows a realistic
+// mix of free/booked instead of being wide open.
+async function addWeekdayAvailability(token, doctorId, patientToken) {
+  const weekdays = upcomingWeekdays();
+  for (const day of weekdays) {
+    const morningStart = atIstanbulTime(day, 9, 0);
+    const morningEnd = atIstanbulTime(day, 12, 0);
+    const afternoonStart = atIstanbulTime(day, 13, 0);
+    const afternoonEnd = atIstanbulTime(day, 17, 0);
+    const morning = await call('POST', '/api/v1/doctors/me/availability', {
+      token,
+      body: { startTime: morningStart.toISOString(), endTime: morningEnd.toISOString() },
+    });
+    const afternoon = await call('POST', '/api/v1/doctors/me/availability', {
+      token,
+      body: { startTime: afternoonStart.toISOString(), endTime: afternoonEnd.toISOString() },
+    });
+    if (morning.status !== 201 || afternoon.status !== 201) {
+      console.warn(
+        `  uyarı: ${day.toISOString().slice(0, 10)} için müsaitlik eklenemedi (muhtemelen rate limit) - bkz. script başındaki not`,
+      );
+    }
+  }
+
+  // A handful of realistic pre-existing bookings: the 2nd upcoming weekday
+  // at 10:00 (left pending) and the 4th at 14:30 (confirmed by the doctor),
+  // so a patient browsing the calendar sees some slots already taken.
+  const toBook = [
+    { day: weekdays[1], hour: 10, minute: 0, confirm: false },
+    { day: weekdays[3], hour: 14, minute: 30, confirm: true },
+  ].filter((entry) => entry.day);
+
+  for (const entry of toBook) {
+    const date = atIstanbulTime(entry.day, entry.hour, entry.minute).toISOString();
+    const booked = await call('POST', '/api/v1/appointments', {
+      token: patientToken,
+      body: { doctorId, date },
+    });
+    if (booked.status === 201 && entry.confirm) {
+      await call('PATCH', `/api/v1/appointments/${booked.json.data.appointment._id}/confirm`, { token });
+    }
+  }
+}
+
+async function setupDoctor(doctorInput, adminToken, patientToken) {
   const auth = await registerOrLogin(doctorInput);
   let token = auth.accessToken;
 
@@ -115,17 +210,7 @@ async function setupDoctor(doctorInput, adminToken) {
 
   const detail = await call('GET', `/api/v1/doctors/${doctorId}`, { token });
   if (detail.json.data.availability.length === 0) {
-    for (let day = 1; day <= 3; day += 1) {
-      const start = new Date();
-      start.setDate(start.getDate() + day);
-      start.setHours(9, 0, 0, 0);
-      const end = new Date(start);
-      end.setHours(17, 0, 0, 0);
-      await call('POST', '/api/v1/doctors/me/availability', {
-        token,
-        body: { startTime: start.toISOString(), endTime: end.toISOString() },
-      });
-    }
+    await addWeekdayAvailability(token, doctorId, patientToken);
   }
 
   return doctorId;
@@ -136,6 +221,10 @@ async function main() {
 
   await registerOrLogin(PATIENT);
   console.log(`Demo hasta hazır: ${PATIENT.email} / ${PATIENT.password}`);
+  const patientLogin = await call('POST', '/api/v1/auth/login', {
+    body: { email: PATIENT.email, password: PATIENT.password },
+  });
+  const patientToken = patientLogin.json.data.accessToken;
 
   const adminLogin = await call('POST', '/api/v1/auth/login', {
     body: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD },
@@ -145,11 +234,11 @@ async function main() {
   }
   const adminToken = adminLogin.json.data.accessToken;
 
-  const doctorId = await setupDoctor(DOCTOR, adminToken);
+  const doctorId = await setupDoctor(DOCTOR, adminToken, patientToken);
   console.log(`Demo doktor hazır: ${DOCTOR.email} / ${DOCTOR.password} (doktor profili: ${doctorId})`);
 
   for (const extra of EXTRA_DOCTORS) {
-    await setupDoctor(extra, adminToken);
+    await setupDoctor(extra, adminToken, patientToken);
   }
   console.log(`${EXTRA_DOCTORS.length} ek doktor profili (farklı uzmanlıklarla) hazırlandı.`);
 
