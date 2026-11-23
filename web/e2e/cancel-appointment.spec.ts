@@ -9,8 +9,7 @@ test('cancelling an appointment goes through a confirmation dialog', async ({ pa
   await page.locator('.doctor-card', { hasText: doctor.specialty }).click();
   await page.waitForURL('**/doktorlar/*');
 
-  const firstSlot = page.locator('.slot-item', { hasNotText: 'Dolu' }).first();
-  await firstSlot.getByRole('button', { name: 'Randevu Al' }).click();
+  await page.getByRole('button', { name: /için randevu al$/ }).first().click();
   await expect(page.getByText('Randevu talebiniz alındı')).toBeVisible();
 
   await page.getByRole('link', { name: 'Randevularım' }).click();

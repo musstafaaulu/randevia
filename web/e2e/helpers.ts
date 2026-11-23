@@ -189,13 +189,34 @@ export async function seedDoctorWithAvailability(
   const profileRes = await postJson('/api/v1/doctors/me', { name, specialty }, doctorToken);
   const doctorId = profileRes.data.doctor._id as string;
 
-  const availabilityStart = new Date(Date.now() + 60 * 60 * 1000);
-  const availabilityEnd = new Date(availabilityStart.getTime() + 2 * 60 * 60 * 1000);
+  // appointment-service only accepts availability windows on a weekday,
+  // inside 09:00-17:00, outside the 12:00-13:00 lunch break (see
+  // appointment-service/src/utils/businessHours.ts) - "now + 1h" could land
+  // anywhere, so pick the next weekday morning instead.
+  const { startTime: availabilityStartIso, endTime: availabilityEndIso } = nextWeekdayMorning();
+  const availabilityStart = new Date(availabilityStartIso);
   await postJson(
     '/api/v1/doctors/me/availability',
-    { startTime: availabilityStart.toISOString(), endTime: availabilityEnd.toISOString() },
+    { startTime: availabilityStartIso, endTime: availabilityEndIso },
     doctorToken,
   );
 
   return { email, password: PASSWORD, doctorId, name, specialty, availabilityStart };
+}
+
+// Tomorrow if it's a weekday, otherwise the next Monday; 09:00-11:00 local
+// time, well inside business hours and on the calendar's first page (the
+// grid pages by 7-day blocks from today).
+function nextWeekdayMorning(): { startTime: string; endTime: string } {
+  let day = new Date();
+  day.setHours(0, 0, 0, 0);
+  do {
+    day = new Date(day.getTime() + 24 * 60 * 60 * 1000);
+  } while (day.getDay() === 0 || day.getDay() === 6);
+
+  const start = new Date(day);
+  start.setHours(9, 0, 0, 0);
+  const end = new Date(day);
+  end.setHours(11, 0, 0, 0);
+  return { startTime: start.toISOString(), endTime: end.toISOString() };
 }

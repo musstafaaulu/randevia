@@ -26,8 +26,7 @@ test('patient booking an appointment notifies the doctor live, without a reload'
     await patientSession.page.locator('.doctor-card', { hasText: doctor.specialty }).click();
     await patientSession.page.waitForURL('**/doktorlar/*');
 
-    const firstSlot = patientSession.page.locator('.slot-item', { hasNotText: 'Dolu' }).first();
-    await firstSlot.getByRole('button', { name: 'Randevu Al' }).click();
+    await patientSession.page.getByRole('button', { name: /için randevu al$/ }).first().click();
 
     await expect(patientSession.page.getByText('Randevu talebiniz alındı')).toBeVisible();
 

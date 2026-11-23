@@ -8,8 +8,7 @@ test('downloading a confirmed appointment as a calendar file', async ({ page, br
   await loginAs(page, patient.email, patient.password);
   await page.locator('.doctor-card', { hasText: doctor.specialty }).click();
   await page.waitForURL('**/doktorlar/*');
-  const firstSlot = page.locator('.slot-item', { hasNotText: 'Dolu' }).first();
-  await firstSlot.getByRole('button', { name: 'Randevu Al' }).click();
+  await page.getByRole('button', { name: /için randevu al$/ }).first().click();
   await expect(page.getByText('Randevu talebiniz alındı')).toBeVisible();
 
   // A pending appointment has no "Takvime Ekle" button yet - only a
