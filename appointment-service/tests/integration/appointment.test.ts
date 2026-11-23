@@ -5,6 +5,7 @@ import { env } from '../../src/config/env';
 import { Appointment } from '../../src/models/Appointment.model';
 import { Doctor } from '../../src/models/Doctor.model';
 import { OutboxEvent } from '../../src/models/OutboxEvent.model';
+import { bookableDate, weekendDate } from '../utils/businessHours';
 import { generateAccessToken, newUserId } from '../utils/token';
 
 beforeAll(async () => {
@@ -32,8 +33,8 @@ async function createDoctor() {
   return { userId, token, doctorId: res.body.data.doctor._id as string };
 }
 
-function futureDate(hoursFromNow = 24): string {
-  return new Date(Date.now() + hoursFromNow * 60 * 60 * 1000).toISOString();
+function futureDate(): string {
+  return bookableDate();
 }
 
 describe('POST /api/v1/appointments', () => {
@@ -103,6 +104,69 @@ describe('POST /api/v1/appointments', () => {
       .send({ doctorId: doctor.doctorId, date: futureDate() });
 
     expect(res.status).toBe(403);
+  });
+
+  describe('business hours', () => {
+    it('rejects a booking on a Saturday', async () => {
+      const doctor = await createDoctor();
+      const patientToken = generateAccessToken(newUserId(), 'patient');
+
+      const res = await request(app)
+        .post('/api/v1/appointments')
+        .set('Authorization', `Bearer ${patientToken}`)
+        .send({ doctorId: doctor.doctorId, date: weekendDate() });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects a booking inside the 12:00-13:00 lunch break', async () => {
+      const doctor = await createDoctor();
+      const patientToken = generateAccessToken(newUserId(), 'patient');
+
+      const res = await request(app)
+        .post('/api/v1/appointments')
+        .set('Authorization', `Bearer ${patientToken}`)
+        .send({ doctorId: doctor.doctorId, date: bookableDate(1, 12, 0) });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects a booking that would end after 17:00', async () => {
+      const doctor = await createDoctor();
+      const patientToken = generateAccessToken(newUserId(), 'patient');
+
+      const res = await request(app)
+        .post('/api/v1/appointments')
+        .set('Authorization', `Bearer ${patientToken}`)
+        .send({ doctorId: doctor.doctorId, date: bookableDate(1, 16, 45) });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('accepts the last bookable slot of the day (16:30-17:00)', async () => {
+      const doctor = await createDoctor();
+      const patientToken = generateAccessToken(newUserId(), 'patient');
+
+      const res = await request(app)
+        .post('/api/v1/appointments')
+        .set('Authorization', `Bearer ${patientToken}`)
+        .send({ doctorId: doctor.doctorId, date: bookableDate(1, 16, 30) });
+
+      expect(res.status).toBe(201);
+    });
+
+    it('rejects a booking more than 14 days out', async () => {
+      const doctor = await createDoctor();
+      const patientToken = generateAccessToken(newUserId(), 'patient');
+      const tooFar = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString();
+
+      const res = await request(app)
+        .post('/api/v1/appointments')
+        .set('Authorization', `Bearer ${patientToken}`)
+        .send({ doctorId: doctor.doctorId, date: tooFar });
+
+      expect(res.status).toBe(400);
+    });
   });
 });
 

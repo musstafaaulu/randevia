@@ -5,6 +5,7 @@ import { env } from '../../src/config/env';
 import { Appointment } from '../../src/models/Appointment.model';
 import { Availability } from '../../src/models/Availability.model';
 import { Doctor } from '../../src/models/Doctor.model';
+import { bookableWindow, weekendDate } from '../utils/businessHours';
 import { generateAccessToken, newUserId } from '../utils/token';
 
 beforeAll(async () => {
@@ -101,12 +102,11 @@ describe('GET /api/v1/doctors/:id', () => {
       .send({ name: 'Dr. Test', specialty: 'Neurology' });
     const doctorId = createRes.body.data.doctor._id as string;
 
-    const start = new Date(Date.now() + 60 * 60 * 1000);
-    const end = new Date(start.getTime() + 30 * 60 * 1000);
+    const window = bookableWindow();
     await request(app)
       .post('/api/v1/doctors/me/availability')
       .set('Authorization', `Bearer ${doctorToken}`)
-      .send({ startTime: start.toISOString(), endTime: end.toISOString() });
+      .send(window);
 
     const patientToken = generateAccessToken(newUserId(), 'patient');
     const res = await request(app)
@@ -175,12 +175,10 @@ describe('POST /api/v1/doctors/me/availability', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ name: 'Dr. Test', specialty: 'ENT' });
 
-    const start = new Date(Date.now() + 60 * 60 * 1000);
-    const end = new Date(start.getTime() + 30 * 60 * 1000);
     const res = await request(app)
       .post('/api/v1/doctors/me/availability')
       .set('Authorization', `Bearer ${token}`)
-      .send({ startTime: start.toISOString(), endTime: end.toISOString() });
+      .send(bookableWindow());
 
     expect(res.status).toBe(201);
     expect(res.body.data.availability.doctorId).toBeDefined();
@@ -193,38 +191,96 @@ describe('POST /api/v1/doctors/me/availability', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ name: 'Dr. Test', specialty: 'ENT' });
 
-    const start = new Date(Date.now() + 60 * 60 * 1000);
-    const end = new Date(start.getTime() - 30 * 60 * 1000);
+    const { startTime, endTime } = bookableWindow();
     const res = await request(app)
       .post('/api/v1/doctors/me/availability')
       .set('Authorization', `Bearer ${token}`)
-      .send({ startTime: start.toISOString(), endTime: end.toISOString() });
+      .send({ startTime: endTime, endTime: startTime });
 
     expect(res.status).toBe(400);
   });
 
   it('requires a doctor profile to exist first', async () => {
     const token = generateAccessToken(newUserId(), 'doctor');
-    const start = new Date(Date.now() + 60 * 60 * 1000);
-    const end = new Date(start.getTime() + 30 * 60 * 1000);
     const res = await request(app)
       .post('/api/v1/doctors/me/availability')
       .set('Authorization', `Bearer ${token}`)
-      .send({ startTime: start.toISOString(), endTime: end.toISOString() });
+      .send(bookableWindow());
 
     expect(res.status).toBe(404);
   });
 
   it('rejects patients from adding availability', async () => {
     const token = generateAccessToken(newUserId(), 'patient');
-    const start = new Date(Date.now() + 60 * 60 * 1000);
-    const end = new Date(start.getTime() + 30 * 60 * 1000);
     const res = await request(app)
       .post('/api/v1/doctors/me/availability')
       .set('Authorization', `Bearer ${token}`)
-      .send({ startTime: start.toISOString(), endTime: end.toISOString() });
+      .send(bookableWindow());
 
     expect(res.status).toBe(403);
+  });
+
+  describe('business hours', () => {
+    async function createDoctor() {
+      const token = generateAccessToken(newUserId(), 'doctor');
+      await request(app)
+        .post('/api/v1/doctors/me')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: 'Dr. Test', specialty: 'ENT' });
+      return token;
+    }
+
+    it('rejects a window on a Saturday', async () => {
+      const token = await createDoctor();
+      const start = weekendDate(9, 0);
+      const end = weekendDate(12, 0);
+      const res = await request(app)
+        .post('/api/v1/doctors/me/availability')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ startTime: start, endTime: end });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects a window that straddles the lunch break', async () => {
+      const token = await createDoctor();
+      const res = await request(app)
+        .post('/api/v1/doctors/me/availability')
+        .set('Authorization', `Bearer ${token}`)
+        .send(bookableWindow(1, 9, 0, 13, 0));
+
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects a window that starts before 09:00', async () => {
+      const token = await createDoctor();
+      const res = await request(app)
+        .post('/api/v1/doctors/me/availability')
+        .set('Authorization', `Bearer ${token}`)
+        .send(bookableWindow(1, 8, 0, 12, 0));
+
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects a window that ends after 17:00', async () => {
+      const token = await createDoctor();
+      const res = await request(app)
+        .post('/api/v1/doctors/me/availability')
+        .set('Authorization', `Bearer ${token}`)
+        .send(bookableWindow(1, 16, 0, 17, 30));
+
+      expect(res.status).toBe(400);
+    });
+
+    it('accepts a full afternoon window ending exactly at 17:00', async () => {
+      const token = await createDoctor();
+      const res = await request(app)
+        .post('/api/v1/doctors/me/availability')
+        .set('Authorization', `Bearer ${token}`)
+        .send(bookableWindow(1, 13, 0, 17, 0));
+
+      expect(res.status).toBe(201);
+    });
   });
 });
 
@@ -236,12 +292,10 @@ describe('DELETE /api/v1/doctors/me/availability/:id', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ name: 'Dr. Test', specialty: 'ENT' });
 
-    const start = new Date(Date.now() + 60 * 60 * 1000);
-    const end = new Date(start.getTime() + 30 * 60 * 1000);
     const created = await request(app)
       .post('/api/v1/doctors/me/availability')
       .set('Authorization', `Bearer ${token}`)
-      .send({ startTime: start.toISOString(), endTime: end.toISOString() });
+      .send(bookableWindow());
     const availabilityId = created.body.data.availability._id as string;
 
     const res = await request(app)
@@ -259,12 +313,10 @@ describe('DELETE /api/v1/doctors/me/availability/:id', () => {
       .set('Authorization', `Bearer ${ownerToken}`)
       .send({ name: 'Dr. Owner', specialty: 'ENT' });
 
-    const start = new Date(Date.now() + 60 * 60 * 1000);
-    const end = new Date(start.getTime() + 30 * 60 * 1000);
     const created = await request(app)
       .post('/api/v1/doctors/me/availability')
       .set('Authorization', `Bearer ${ownerToken}`)
-      .send({ startTime: start.toISOString(), endTime: end.toISOString() });
+      .send(bookableWindow());
     const availabilityId = created.body.data.availability._id as string;
 
     const otherToken = generateAccessToken(newUserId(), 'doctor');

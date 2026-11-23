@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isBookableAvailabilityWindow } from '../utils/businessHours';
 import { zObjectId } from '../utils/objectId';
 
 export const upsertDoctorProfileSchema = z.object({
@@ -15,6 +16,11 @@ export const addAvailabilitySchema = z
   .refine((data) => data.endTime > data.startTime, {
     message: 'Bitiş saati başlangıç saatinden sonra olmalı',
     path: ['endTime'],
+  })
+  .refine((data) => isBookableAvailabilityWindow(data.startTime, data.endTime), {
+    message:
+      'Müsaitlik yalnızca hafta içi (Pazartesi-Cuma), aynı gün içinde, 09:00-17:00 arasında ve 12:00-13:00 öğle molası hariç tanımlanabilir',
+    path: ['startTime'],
   });
 
 export const doctorIdParamSchema = z.object({

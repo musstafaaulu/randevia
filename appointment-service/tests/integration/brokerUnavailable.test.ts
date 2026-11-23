@@ -5,6 +5,7 @@ import { env } from '../../src/config/env';
 import { Appointment } from '../../src/models/Appointment.model';
 import { Doctor } from '../../src/models/Doctor.model';
 import { OutboxEvent } from '../../src/models/OutboxEvent.model';
+import { bookableDate } from '../utils/businessHours';
 import { generateAccessToken, newUserId } from '../utils/token';
 
 // The real publisher is used here but never started, which is exactly the
@@ -37,7 +38,7 @@ describe('Appointment operations while RabbitMQ is unavailable', () => {
       .set('Authorization', `Bearer ${patientToken}`)
       .send({
         doctorId: doctorRes.body.data.doctor._id,
-        date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        date: bookableDate(),
       });
     expect(bookRes.status).toBe(201);
     const appointmentId = bookRes.body.data.appointment._id as string;
