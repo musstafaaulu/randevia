@@ -175,12 +175,30 @@ const profile = await call('POST', '/api/v1/doctors/me', {
 check(profile.status === 200, 'doctor creates a profile', profile.body);
 const doctorId = profile.body.data.doctor._id;
 
+// appointment-service only accepts availability/appointments on a weekday,
+// inside 09:00-17:00 Istanbul time, outside the 12:00-13:00 lunch break
+// (see appointment-service/src/utils/businessHours.ts). Turkey has used a
+// fixed UTC+03:00 offset (no DST) since 2016, so Istanbul wall-clock time
+// is always UTC time plus 3 hours.
 const day = 24 * 60 * 60 * 1000;
-const start = new Date(Date.now() + 7 * day);
-start.setUTCMinutes(0, 0, 0);
+const TZ_OFFSET_HOURS = 3;
+function istanbulWeekdayOf(date) {
+  return new Date(date.getTime() + TZ_OFFSET_HOURS * 3600_000).getUTCDay();
+}
+function atIstanbulTime(date, hour, minute) {
+  const shifted = new Date(date.getTime() + TZ_OFFSET_HOURS * 3600_000);
+  return new Date(
+    Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate(), hour - TZ_OFFSET_HOURS, minute),
+  );
+}
+let candidateDay = new Date(Date.now() + 7 * day);
+while (istanbulWeekdayOf(candidateDay) === 0 || istanbulWeekdayOf(candidateDay) === 6) {
+  candidateDay = new Date(candidateDay.getTime() + day);
+}
+const start = atIstanbulTime(candidateDay, 9, 0);
 const availability = await call('POST', '/api/v1/doctors/me/availability', {
   token: doctorToken,
-  body: { startTime: start.toISOString(), endTime: new Date(start.getTime() + 4 * 3600_000).toISOString() },
+  body: { startTime: start.toISOString(), endTime: atIstanbulTime(candidateDay, 12, 0).toISOString() },
 });
 check(availability.status === 201, 'doctor adds availability', availability.body);
 
