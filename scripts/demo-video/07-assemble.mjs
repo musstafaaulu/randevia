@@ -33,26 +33,141 @@ function combineSplit() {
 
 // Scales/pads to a uniform 1920x1080 canvas (mobile's phone-sized recording
 // gets centered on the app's own dark brand color instead of being blown up
-// full width), then resamples to a smooth 60fps. `mi_mode=blend` (cross-
-// dissolve between the real frames) was chosen over full motion-compensated
-// interpolation (`mi_mode=mci`) after measuring: this environment's actual
-// capture rate caps at ~25-28fps regardless of method (CDP screencast and a
-// raw screenshot-polling loop were both tried and measured no better - see
-// lib/browser.mjs) - motion-compensated interpolation is also far slower
-// and can warp small fast-moving things like a cursor, which is most of
-// what's moving here, where blend reliably reads as smooth with no risk of
-// video and no warping artifacts.
-function normalizeAndInterpolate(id, inputFile) {
+// full width), then resamples to 60fps with plain frame duplication
+// (`fps=60`, no interpolation). This replaced `minterpolate=fps=60:mi_mode=
+// blend`: blending two real-but-different frames together reads fine on a
+// still background but visibly ghosts/smears anything actually moving (the
+// cursor, a just-typed character) - duplicating frames instead never
+// invents a blended pixel, so there is nothing to smear.
+//
+// A/B'd both on a real 2.2s sample of this scene's own footage (the email
+// field being typed into) with `tblend=all_mode=difference,signalstats`,
+// comparing the frame-to-frame luma delta: blend changed on 114/130 frames
+// (lower amplitude, avg 0.109) while duplication changed on only 98/130
+// (higher amplitude, avg 0.058, peak 0.639 vs blend's 0.318). That is
+// exactly the signature of smearing: blend spreads one real transition
+// across more frames at a smaller, hazier magnitude each, instead of
+// showing it once, sharply, on the one frame it actually happened on.
+// (Scroll motion no longer goes through this function at all - see
+// splicePans()/buildPanClip() for how scroll segments are replaced with a
+// synthesized pan instead.)
+function normalizeAndUpsample(id, inputFile) {
   const out = `clips/${id}-norm.mp4`;
   ffmpeg([
     '-i', inputFile,
     '-vf',
-    'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=0x0b1120,minterpolate=fps=60:mi_mode=blend,format=yuv420p',
+    'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=0x0b1120,setsar=1,fps=60,format=yuv420p',
     '-c:v', 'libx264',
     '-an',
     out,
   ]);
   return out;
+}
+
+function loadPans(id) {
+  const p = path.join(WORK_DIR, 'raw', `${id}-pans.json`);
+  if (!fs.existsSync(p)) return [];
+  return JSON.parse(fs.readFileSync(p, 'utf8'));
+}
+
+// Synthesizes one scroll motion as a genuinely smooth 60fps pan over a
+// single full-page screenshot (see lib/scrollPan.mjs): every output frame
+// is a distinct crop of one real raster, eased in/out with a cosine curve,
+// so - unlike resampling a real low-fps scroll recording - there is no
+// interpolation step that could smear or ghost. (zoompan was tried first -
+// it's the usual ffmpeg tool for this - but it defines its pan range in
+// terms of *zoom*: with no zoom (z=1) the "cropped" region is defined to be
+// the entire source image, so there is no room left to pan across and y is
+// pinned at 0 regardless of the expression. Plain `crop`, driven by `t`
+// directly instead of a zoom-relative window, has no such floor - verified
+// by diffing the first/middle/last extracted frame of a sample clip and
+// confirming the content position actually moves.)
+function buildPanClip(id, index, pan) {
+  const fps = 60;
+  const durationSec = pan.durationMs / 1000;
+  const distance = pan.endY - pan.startY;
+  const yExpr = `${pan.startY}+(${distance})*(0.5-0.5*cos(PI*min(t/${durationSec},1)))`;
+
+  const needsScale = pan.viewport.width !== 1920 || pan.viewport.height !== 1080;
+  const vf = [
+    `crop=${pan.viewport.width}:${pan.viewport.height}:0:'${yExpr}'`,
+    ...(needsScale
+      ? [
+          'scale=1920:1080:force_original_aspect_ratio=decrease',
+          'pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=0x0b1120',
+        ]
+      : []),
+    'setsar=1',
+    'format=yuv420p',
+  ].join(',');
+
+  const out = `clips/${id}-pan${index}.mp4`;
+  ffmpeg([
+    '-loop', '1',
+    '-framerate', String(fps),
+    '-t', durationSec.toFixed(3),
+    '-i', pan.file,
+    '-vf', vf,
+    '-r', String(fps),
+    '-c:v', 'libx264',
+    out,
+  ]);
+  return out;
+}
+
+// Frame-accurate trim (re-encoding, not stream-copy, is what makes `-ss`
+// before `-i` land exactly on the requested boundary instead of snapping to
+// the nearest keyframe) of one [startSec, endSec) window of `inputFile`.
+function trimClip(inputFile, startSec, endSec, out) {
+  const dur = endSec - startSec;
+  ffmpeg([
+    '-ss', startSec.toFixed(3),
+    '-i', inputFile,
+    '-t', dur.toFixed(3),
+    '-c:v', 'libx264',
+    '-an',
+    out,
+  ]);
+  return out;
+}
+
+function concatClips(files, out) {
+  if (files.length === 1) {
+    ffmpeg(['-i', files[0], '-c', 'copy', out]);
+    return out;
+  }
+  const inputs = files.flatMap((f) => ['-i', f]);
+  const labels = files.map((_, i) => `[${i}:v]`).join('');
+  const filter = `${labels}concat=n=${files.length}:v=1:a=0[outv]`;
+  ffmpeg([...inputs, '-filter_complex', filter, '-map', '[outv]', '-c:v', 'libx264', out]);
+  return out;
+}
+
+// Cuts the raw-but-ugly instant-jump window the recording left at each
+// scrollPan() marker out of the normalized clip, and splices in the
+// synthesized pan in its place - same content at both seams (the pan starts
+///ends on the exact screenshot crop the real page was showing), so the cut
+// is invisible. Scenes with no pans (loadPans returned []) pass through
+// unchanged.
+function splicePans(id, normFile, pans, sceneDurSec) {
+  if (pans.length === 0) return normFile;
+
+  const sorted = [...pans].sort((a, b) => a.startMs - b.startMs);
+  const pieces = [];
+  let cursor = 0;
+  sorted.forEach((pan, i) => {
+    const panStartSec = pan.startMs / 1000;
+    if (panStartSec > cursor + 0.01) {
+      pieces.push(trimClip(normFile, cursor, panStartSec, `clips/${id}-seg${i}.mp4`));
+    }
+    pieces.push(buildPanClip(id, i, pan));
+    cursor = panStartSec + pan.durationMs / 1000;
+  });
+  if (sceneDurSec > cursor + 0.01) {
+    pieces.push(trimClip(normFile, cursor, sceneDurSec, `clips/${id}-seg${sorted.length}.mp4`));
+  }
+
+  return concatClips(pieces, `clips/${id}-spliced.mp4`);
 }
 
 function loadEvents(id) {
@@ -163,13 +278,16 @@ async function main() {
   console.log('combining split-screen scene...');
   combineSplit();
 
-  console.log('normalizing + interpolating to 60fps...');
+  console.log('normalizing to 60fps + splicing in synthesized scroll pans...');
   const normFiles = {};
   const sceneDurations = {};
   for (const id of SCENE_IDS) {
     console.log(`  - ${id}`);
-    sceneDurations[id] = duration(RAW_FILES[id]);
-    normFiles[id] = normalizeAndInterpolate(id, RAW_FILES[id]);
+    const normFile = normalizeAndUpsample(id, RAW_FILES[id]);
+    const pans = loadPans(id);
+    const normDurationSec = duration(normFile);
+    normFiles[id] = splicePans(id, normFile, pans, normDurationSec);
+    sceneDurations[id] = duration(normFiles[id]);
   }
 
   for (const lang of ['tr', 'en']) {

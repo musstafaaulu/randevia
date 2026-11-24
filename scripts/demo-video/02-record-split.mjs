@@ -57,15 +57,16 @@ async function main() {
   );
   await patient.waitForTimeout(2600);
 
-  const freeSlot = patient.locator('.slot-item', { hasNotText: 'Dolu' }).first();
-  await freeSlot.scrollIntoViewIfNeeded();
+  const freeSlotButton = patient.getByRole('button', { name: /için randevu al$/ }).first();
+  await freeSlotButton.scrollIntoViewIfNeeded();
   await patient.waitForTimeout(500);
-  const slotTime = (await freeSlot.locator('strong').first().textContent().catch(() => null))?.trim();
+  const slotLabel = (await freeSlotButton.getAttribute('aria-label').catch(() => null)) ?? '';
+  const slotTime = slotLabel.replace(/ için randevu al$/, '').trim() || null;
   timeline.log(
     slotTime ? `Hasta, ${slotTime} için randevu talebi gönderiyor` : 'Hasta randevu talebi gönderiyor',
     slotTime ? `The patient sends an appointment request for ${slotTime}` : 'The patient sends an appointment request',
   );
-  await humanClick(patient, freeSlot.getByRole('button', { name: 'Randevu Al' }));
+  await humanClick(patient, freeSlotButton);
 
   await Promise.all([
     patient.getByText('Randevu talebiniz alındı').waitFor(),

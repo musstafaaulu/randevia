@@ -46,7 +46,14 @@ export async function recordScene(
   const eventsPath = path.join(RAW_DIR, `${id}-events.json`);
   fs.writeFileSync(eventsPath, JSON.stringify(timeline.events, null, 2));
 
-  console.log(`recorded ${id} -> ${dest} (${timeline.events.length} caption events)`);
+  if (timeline.pans.length > 0) {
+    const pansPath = path.join(RAW_DIR, `${id}-pans.json`);
+    fs.writeFileSync(pansPath, JSON.stringify(timeline.pans, null, 2));
+  }
+
+  console.log(
+    `recorded ${id} -> ${dest} (${timeline.events.length} caption events, ${timeline.pans.length} pans)`,
+  );
   return dest;
 }
 

@@ -4,7 +4,8 @@
 // are logged to with their real timestamp, so 07-assemble.mjs can burn in
 // captions synced to what's actually happening on screen.
 import { recordScene } from './lib/record.mjs';
-import { humanClick, humanType, humanScroll } from './lib/browser.mjs';
+import { humanClick, humanType } from './lib/browser.mjs';
+import { scrollPan } from './lib/scrollPan.mjs';
 import * as api from './lib/api.mjs';
 
 const PATIENT = { email: 'hasta@randevia.local', password: 'Demo12345!' };
@@ -73,14 +74,20 @@ async function main() {
       'Tanıtım sayfasında platformun öne çıkan özellikleri görülüyor',
       "The landing page highlights the platform's key features",
     );
-    await humanScroll(page, 900, 18, 150);
-    await page.waitForTimeout(1800);
-    await humanScroll(page, -900, 14, 110);
+    await scrollPan(page, timeline, '01-tanitim-giris-arama', 900, 2200);
+    await page.waitForTimeout(800);
+    await scrollPan(page, timeline, '01-tanitim-giris-arama', -900, 1600);
     await page.waitForTimeout(500);
 
     timeline.log('Hasta hesabıyla giriş yapılıyor', 'Logging in with a patient account');
     await uiLogin(page, PATIENT.email, PATIENT.password);
     await page.waitForTimeout(1200);
+
+    timeline.log(
+      '12 farklı branşta doktor listeleniyor',
+      'Doctors across 12 different specialties are listed',
+    );
+    await page.waitForTimeout(2000);
 
     timeline.log('Doktor listesinde isme göre arama yapılıyor', 'Searching the doctor list by name');
     await humanType(page, page.getByPlaceholder('İsim veya uzmanlık alanına göre ara…'), 'Mert');
@@ -103,7 +110,12 @@ async function main() {
       'Doktor detayında haftalık müsaitlik takvimi görülüyor',
       "The doctor's weekly availability calendar"
     );
-    await humanScroll(page, 500, 14, 130);
+    await scrollPan(page, timeline, '01-tanitim-giris-arama', 500, 1600);
+    await page.waitForTimeout(600);
+    timeline.log(
+      'Takvimde hafta sonu, öğle molası ve mesai dışı saatler kapalı',
+      'Weekends, the lunch break, and off-hours are closed on the calendar',
+    );
     await page.waitForTimeout(2200);
   });
 
@@ -154,7 +166,7 @@ async function main() {
     );
     await page.waitForTimeout(3000);
     timeline.log('Kullanıcı rolleri buradan yönetiliyor', 'User roles are managed here');
-    await humanScroll(page, 400, 10, 130);
+    await scrollPan(page, timeline, '05-admin-panel', 400, 1300);
     await page.waitForTimeout(3200);
   });
 

@@ -31,20 +31,6 @@ export async function humanType(page, locator, text) {
   await page.waitForTimeout(300);
 }
 
-// Eased (slow -> fast -> slow) wheel scroll in many small increments instead
-// of a few big jumps, so the motion itself is smooth before any video
-// post-processing even runs.
-export async function humanScroll(page, totalPx, steps = 30, pauseMs = 40) {
-  for (let i = 0; i < steps; i++) {
-    const progress = (i + 0.5) / steps;
-    // ease-in-out: slow at the ends, faster in the middle.
-    const ease = Math.sin(progress * Math.PI);
-    const step = (totalPx / steps) * (0.4 + 1.2 * ease);
-    await page.mouse.wheel(0, step);
-    await page.waitForTimeout(pauseMs);
-  }
-}
-
 export function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

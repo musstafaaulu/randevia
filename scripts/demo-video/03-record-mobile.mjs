@@ -1,5 +1,6 @@
 import { recordScene } from './lib/record.mjs';
 import { humanClick, humanType } from './lib/browser.mjs';
+import { scrollPan } from './lib/scrollPan.mjs';
 
 const PATIENT = { email: 'hasta@randevia.local', password: 'Demo12345!' };
 const MOBILE_VIEWPORT = { width: 390, height: 844 };
@@ -25,8 +26,8 @@ async function main() {
       await humanClick(page, page.getByRole('button', { name: 'Menüyü aç/kapat' }));
       await page.waitForTimeout(1200);
 
-      await page.mouse.wheel(0, 300);
-      await page.waitForTimeout(2000);
+      await scrollPan(page, timeline, '04b-mobil', 300, 1300);
+      await page.waitForTimeout(700);
     },
     { viewport: MOBILE_VIEWPORT },
   );

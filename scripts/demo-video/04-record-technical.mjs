@@ -1,5 +1,6 @@
 import { recordScene } from './lib/record.mjs';
 import { humanClick, humanMove } from './lib/browser.mjs';
+import { scrollPan } from './lib/scrollPan.mjs';
 
 // Picks a real, fresh multi-service trace instead of a hardcoded id that
 // ages out of Jaeger's retention: finds the most recent api-gateway POST
@@ -72,8 +73,8 @@ async function main() {
         "Swagger'da tüm API uç noktalarının canlı dokümantasyonu",
         'Swagger documents every API endpoint live',
       );
-      await page.mouse.wheel(0, 500);
-      await page.waitForTimeout(3200);
+      await scrollPan(page, timeline, '06-teknik', 500, 1300);
+      await page.waitForTimeout(1900);
     },
     { baseURL: 'http://localhost:8080' },
   );
