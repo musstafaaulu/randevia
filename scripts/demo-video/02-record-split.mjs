@@ -51,10 +51,7 @@ async function main() {
   await humanClick(patient, patient.locator('.doctor-card', { hasText: 'Kardiyoloji' }).first());
   await patient.waitForURL('**/doktorlar/*');
   await patient.waitForTimeout(600);
-  timeline.log(
-    'Hasta, doktorun haftalık müsaitlik takviminde uygun bir saat arıyor',
-    'The patient looks for an open slot in the doctor’s weekly calendar',
-  );
+  timeline.log("Hasta müsait bir saat arıyor", "Patient's looking for an open slot");
   await patient.waitForTimeout(2600);
 
   const freeSlotButton = patient.getByRole('button', { name: /için randevu al$/ }).first();
@@ -63,18 +60,18 @@ async function main() {
   const slotLabel = (await freeSlotButton.getAttribute('aria-label').catch(() => null)) ?? '';
   const slotTime = slotLabel.replace(/ için randevu al$/, '').trim() || null;
   timeline.log(
-    slotTime ? `Hasta, ${slotTime} için randevu talebi gönderiyor` : 'Hasta randevu talebi gönderiyor',
-    slotTime ? `The patient sends an appointment request for ${slotTime}` : 'The patient sends an appointment request',
+    slotTime ? `Hasta ${slotTime}'e randevu alıyor` : 'Hasta randevu alıyor',
+    slotTime ? `Patient books ${slotTime}` : 'Patient books an appointment',
   );
   await humanClick(patient, freeSlotButton);
 
   await Promise.all([
-    patient.getByText('Randevu talebiniz alındı').waitFor(),
+    patient.locator('.form-notice', { hasText: 'Randevu talebiniz alındı' }).waitFor(),
     doctor.locator('.bell-badge').waitFor({ timeout: 10_000 }),
   ]);
   timeline.log(
-    'Doktorun ekranına bildirim, sayfa yenilenmeden anında düşüyor',
-    "The notification lands on the doctor's screen instantly - no page reload",
+    'Doktorun ekranına bildirim anında geliyor, sayfa yenilenmedi',
+    "Notification hits the doctor's screen instantly, no refresh",
   );
   await patient.waitForTimeout(3200);
 
@@ -85,10 +82,7 @@ async function main() {
   await patient.waitForTimeout(600);
 
   // Doctor notices the live bell update and opens it.
-  timeline.log(
-    'Doktor bildirim zilini açıp talebi görüyor',
-    'The doctor opens the bell and sees the request',
-  );
+  timeline.log('Doktor bildirimi açıp talebi görüyor', 'Doctor opens the bell, sees the request');
   await humanClick(doctor, doctor.locator('.bell-button'));
   await doctor.waitForTimeout(1200);
   await doctor.locator('.bell-dropdown').getByText('Yeni randevu talebi').first().waitFor();
@@ -100,7 +94,7 @@ async function main() {
 
   const approveButton = doctor.getByRole('button', { name: 'Onayla' }).first();
   await approveButton.scrollIntoViewIfNeeded();
-  timeline.log('Doktor randevuyu onaylıyor', 'The doctor confirms the appointment');
+  timeline.log('Doktor randevuyu onaylıyor', 'Doctor approves it');
   await humanClick(doctor, approveButton);
   await doctor.waitForTimeout(300);
   await humanClick(doctor, doctor.getByRole('alertdialog').getByRole('button', { name: 'Onayla' }));
@@ -108,8 +102,8 @@ async function main() {
   // The patient side is the payoff: a live toast + status flip, no reload.
   await patient.locator('.status-badge.status-confirmed').first().waitFor({ timeout: 10_000 });
   timeline.log(
-    'Hastaya anında onay bildirimi geliyor, randevu durumu canlı güncelleniyor',
-    "The patient gets an instant confirmation notification - the status updates live",
+    'Hastaya anında onay geliyor, durum canlı güncelleniyor',
+    'Patient gets instant confirmation, status updates live',
   );
   await patient.waitForTimeout(3600);
 

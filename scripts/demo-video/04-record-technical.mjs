@@ -33,8 +33,8 @@ async function main() {
       await page.waitForTimeout(1200);
       await page.waitForSelector('table.list', { timeout: 10_000 }).catch(() => {});
       timeline.log(
-        'Randevu olayı RabbitMQ üzerinden Notification Service’e iletiliyor',
-        'The appointment event is relayed to the Notification Service through RabbitMQ',
+        'Bu olay RabbitMQ üzerinden bildirim servisine gitti',
+        'This event went to the notification service through RabbitMQ',
       );
       await humanMove(page, 960, 400);
       await page.waitForTimeout(3200);
@@ -49,10 +49,7 @@ async function main() {
       if (await skip.isVisible().catch(() => false)) await skip.click();
       await page.goto('http://localhost:3001/d/randevia-overview/randevia?orgId=1&from=now-1h&to=now&kiosk');
       await page.waitForTimeout(2500);
-      timeline.log(
-        "Grafana'da servislerin gerçek zamanlı metrikleri",
-        "Grafana shows the services' real-time metrics",
-      );
+      timeline.log("Grafana'da servislerin canlı metrikleri", 'Live service metrics in Grafana');
       await humanMove(page, 900, 500);
       await page.waitForTimeout(3200);
 
@@ -60,8 +57,8 @@ async function main() {
       await page.goto(jaegerTraceUrl);
       await page.waitForTimeout(1600);
       timeline.log(
-        "Jaeger'da bir isteğin gateway'den appointment-service'e uzanan yolculuğu",
-        "Jaeger traces a single request's journey from the gateway to appointment-service",
+        "Jaeger'da bir isteğin gateway'den appointment-service'e yolculuğu",
+        'Jaeger traces a request from the gateway to appointment-service',
       );
       await humanMove(page, 700, 400);
       await page.waitForTimeout(3400);
@@ -69,10 +66,7 @@ async function main() {
       // Swagger / OpenAPI docs.
       await page.goto('http://localhost:3000/api/docs');
       await page.waitForTimeout(1200);
-      timeline.log(
-        "Swagger'da tüm API uç noktalarının canlı dokümantasyonu",
-        'Swagger documents every API endpoint live',
-      );
+      timeline.log('Swagger’da tüm API uçları belgeli', 'Every API endpoint, documented in Swagger');
       await scrollPan(page, timeline, '06-teknik', 500, 1300);
       await page.waitForTimeout(1900);
     },

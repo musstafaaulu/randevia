@@ -16,10 +16,7 @@ async function main() {
       await humanClick(page, page.getByRole('button', { name: 'Giriş Yap' }));
       await page.waitForURL('**/doktorlar');
       await page.waitForTimeout(600);
-      timeline.log(
-        'Mobilde tek sütunlu grid ve hamburger menü',
-        'On mobile: a single-column grid and a hamburger menu',
-      );
+      timeline.log('Mobilde tek sütun, hamburger menü var', 'On mobile: single column, hamburger menu');
 
       await humanClick(page, page.getByRole('button', { name: 'Menüyü aç/kapat' }));
       await page.waitForTimeout(2000);

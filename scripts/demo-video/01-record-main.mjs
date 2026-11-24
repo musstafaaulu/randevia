@@ -70,35 +70,26 @@ async function main() {
   await recordScene('01-tanitim-giris-arama', async (page, _context, timeline) => {
     await page.goto('/');
     await page.waitForTimeout(600);
-    timeline.log(
-      'Tanıtım sayfasında platformun öne çıkan özellikleri görülüyor',
-      "The landing page highlights the platform's key features",
-    );
+    timeline.log('Ana sayfada aşağı kaydırıyoruz', 'Scrolling down the landing page');
     await scrollPan(page, timeline, '01-tanitim-giris-arama', 900, 2200);
     await page.waitForTimeout(800);
     await scrollPan(page, timeline, '01-tanitim-giris-arama', -900, 1600);
     await page.waitForTimeout(500);
 
-    timeline.log('Hasta hesabıyla giriş yapılıyor', 'Logging in with a patient account');
+    timeline.log('Hasta giriş yapıyor', 'Patient logs in');
     await uiLogin(page, PATIENT.email, PATIENT.password);
     await page.waitForTimeout(1200);
 
-    timeline.log(
-      '12 farklı branşta doktor listeleniyor',
-      'Doctors across 12 different specialties are listed',
-    );
+    timeline.log('12 doktor var, farklı branşlarda', '12 doctors here, different specialties');
     await page.waitForTimeout(2000);
 
-    timeline.log('Doktor listesinde isme göre arama yapılıyor', 'Searching the doctor list by name');
+    timeline.log('İsme göre arıyoruz', 'Searching by name');
     await humanType(page, page.getByPlaceholder('İsim veya uzmanlık alanına göre ara…'), 'Mert');
     await page.waitForTimeout(2200);
     await page.getByPlaceholder('İsim veya uzmanlık alanına göre ara…').fill('');
     await page.waitForTimeout(400);
 
-    timeline.log(
-      'Branşa göre filtreleniyor: Ortopedi ve Travmatoloji',
-      'Filtering by specialty: Orthopedics and Traumatology',
-    );
+    timeline.log('Branşa göre de filtrelenebiliyor', 'Can filter by specialty too');
     await humanClick(page, page.getByLabel('Uzmanlık alanına göre filtrele'));
     await page.getByLabel('Uzmanlık alanına göre filtrele').selectOption({ label: 'Ortopedi ve Travmatoloji' });
     await page.waitForTimeout(2200);
@@ -106,15 +97,12 @@ async function main() {
     await humanClick(page, page.locator('.doctor-card', { hasText: 'Ortopedi' }).first());
     await page.waitForURL('**/doktorlar/*');
     await page.waitForTimeout(1000);
-    timeline.log(
-      'Doktor detayında haftalık müsaitlik takvimi görülüyor',
-      "The doctor's weekly availability calendar"
-    );
+    timeline.log("Doktorun haftalık takvimi burada", "Here's the doctor's weekly calendar");
     await scrollPan(page, timeline, '01-tanitim-giris-arama', 500, 1600);
     await page.waitForTimeout(600);
     timeline.log(
-      'Takvimde hafta sonu, öğle molası ve mesai dışı saatler kapalı',
-      'Weekends, the lunch break, and off-hours are closed on the calendar',
+      'Hafta sonu, öğle arası ve mesai dışı kapalı',
+      'Weekends, lunch break, off-hours are closed',
     );
     await page.waitForTimeout(2200);
   });
@@ -128,13 +116,10 @@ async function main() {
     await page.waitForURL('**/randevularim');
     await page.waitForTimeout(500);
     await page.locator('.status-badge.status-confirmed').first().scrollIntoViewIfNeeded();
-    timeline.log(
-      'Onaylanmış randevu, durum rozetiyle birlikte listeleniyor',
-      'A confirmed appointment appears with its status badge',
-    );
+    timeline.log("Bu randevu zaten onaylanmış", "This appointment's already confirmed");
     await page.waitForTimeout(2800);
     timeline.log(
-      "'Takvime Ekle' ile gerçek bir .ics dosyası indiriliyor",
+      "'Takvime Ekle' gerçek bir .ics dosyası indiriyor",
       "'Add to Calendar' downloads a real .ics file",
     );
     const downloadButton = page.getByRole('button', { name: 'Takvime Ekle' }).first();
@@ -146,10 +131,7 @@ async function main() {
   await recordScene('04a-tema', async (page, _context, timeline) => {
     await uiLogin(page, PATIENT.email, PATIENT.password);
     await page.waitForTimeout(500);
-    timeline.log(
-      "Koyu temaya geçiliyor - tercih localStorage'da kalıcı",
-      "Switching to dark mode - the choice persists in localStorage",
-    );
+    timeline.log('Koyu temaya geçiyoruz, tercih kalıcı', "Switching to dark mode, it's remembered");
     await humanClick(page, page.getByRole('button', { name: 'Koyu temaya geç' }));
     await page.waitForTimeout(3600);
   });
@@ -161,11 +143,11 @@ async function main() {
     await page.waitForURL('**/admin');
     await page.waitForTimeout(800);
     timeline.log(
-      'Admin panelinde kullanıcı ve randevu istatistikleri',
-      'The admin panel shows user and appointment statistics',
+      'Admin panelinde kullanıcı ve randevu sayıları var',
+      'Admin panel shows user and appointment counts',
     );
     await page.waitForTimeout(3000);
-    timeline.log('Kullanıcı rolleri buradan yönetiliyor', 'User roles are managed here');
+    timeline.log('Kullanıcı rolleri buradan değiştiriliyor', 'User roles get changed here');
     await scrollPan(page, timeline, '05-admin-panel', 400, 1300);
     await page.waitForTimeout(3200);
   });
