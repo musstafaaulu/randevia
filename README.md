@@ -59,7 +59,7 @@ Sistem; tek giriş noktası olan bir **API Gateway**, kendi veritabanına sahip 
 - **Gözlemlenebilirlik:** Request id, yapılandırılmış loglar, OpenTelemetry/Jaeger, Prometheus metrikleri, hazır bir Grafana paneli.
 - **Web arayüzü:** React + TypeScript SPA, Türkçe, mobil uyumlu, açık/koyu tema. Doktor arama, haftalık takvim, onay pencereleri, admin paneli, canlı bildirimler.
 - **Tamamen Türkçe:** Arayüz ve API hata mesajları Türkçe; kod, loglar ve commit'ler İngilizce.
-- **Kalite:** TypeScript strict, Zod doğrulama, 245 backend testi, 45 web bileşen testi, 34 adımlık REST e2e, 7 Playwright testi, her push'ta CI.
+- **Kalite:** TypeScript strict, Zod doğrulama, 245 backend testi, 50 web bileşen testi, 34 adımlık REST e2e, 7 Playwright testi, her push'ta CI.
 
 ---
 
@@ -482,7 +482,7 @@ Her servis, gerçek MongoDB ve RabbitMQ'ya karşı çalışan entegrasyon testle
 
 **Uçtan uca test** (`scripts/e2e.mjs`, gerçek `docker compose` sistemine karşı, yalnızca gateway üzerinden): **34/34** ✅ — kayıt, rol atama, randevu alma/onay/iptal, bildirimler, kuyruk topolojisi. Her koşu kendi test verisini temizler (`scripts/clean-test-data.mjs`).
 
-**Web birim/bileşen testleri** ([`web/vitest.config.ts`](web/vitest.config.ts), Vitest + Testing Library): **45/45** ✅ — saf mantık (`avatarColor`, `isValidEmail`), ortak bileşenler, mock'lanmış `DoctorsListPage`, e-posta doğrulama/şifre sıfırlama sayfaları, `.ics` indirme yardımcısı.
+**Web birim/bileşen testleri** ([`web/vitest.config.ts`](web/vitest.config.ts), Vitest + Testing Library): **50/50** ✅ — saf mantık (`avatarColor`, `isValidEmail`), ortak bileşenler, mock'lanmış `DoctorsListPage` ve `DoctorDetailPage` (haftalık takvim), e-posta doğrulama/şifre sıfırlama sayfaları, `.ics` indirme yardımcısı.
 
 **Web arayüzü uçtan uca testleri** (Playwright, gerçek `docker compose` sistemine karşı): **7/7** ✅. [`realtime.spec.ts`](web/e2e/realtime.spec.ts) iki tarayıcı bağlamıyla (hasta + doktor) bildirim zilinin sayfa yenilenmeden güncellendiğini doğrular; [`password-reset.spec.ts`](web/e2e/password-reset.spec.ts) MailHog'un API'sinden gerçekten gönderilen e-postayı okuyup şifreyi sıfırlar (mock değil); [`ics-download.spec.ts`](web/e2e/ics-download.spec.ts) gerçek bir `.ics` indirmesini doğrular. Diğerleri: `doctor-search`, `profile`, `cancel-appointment`, `theme-toggle`. Bkz. [`web/e2e/README.md`](web/e2e/README.md).
 

@@ -4,7 +4,7 @@
 
 ## Bağlam
 
-B7'deki k6 yük testi (bkz. README "k6 Yük Testi") şunu ortaya çıkardı:
+k6 yük testi (bkz. README "k6 Yük Testi") şunu ortaya çıkardı:
 auth-service, appointment-service ve notification-service'in her birinde,
 gateway'inkinden (`RATE_LIMIT_MAX`) bağımsız, kodun içine gömülü sabit bir
 IP başına limit vardı (100 istek/15 dk). ADR-0002'deki tasarım yüzünden bu
