@@ -1,5 +1,19 @@
 import { test, expect } from '@playwright/test';
 import { loginAs, seedPatient, submitLoginForm } from './helpers';
+import { resetRateLimitedServices } from './resetRateLimits';
+
+// By the time this file runs, the four spec files before it (plus this
+// suite's own page loads, each bootstrapping auth via GET /auth/me + POST
+// /auth/refresh) have already spent a good chunk of the gateway's
+// credential-endpoint budget (AUTH_RATE_LIMIT_MAX, 20/15min - see
+// resetRateLimits.ts). globalSetup only resets this once, at the very start
+// of the whole run, so the two password-change requests below can land
+// after the budget is gone and get a 429 ("Çok fazla istek gönderdiniz")
+// instead of the validation response the assertions expect. A fresh reset
+// right before this file's own test removes that ordering dependency.
+test.beforeAll(() => {
+  resetRateLimitedServices();
+});
 
 test('updating the profile name and changing the password both take effect', async ({ page }) => {
   const patient = await seedPatient();
