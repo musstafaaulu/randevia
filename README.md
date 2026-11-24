@@ -49,17 +49,17 @@ Sistem; tek giriş noktası olan bir **API Gateway**, kendi veritabanına sahip 
 
 ## Öne Çıkanlar
 
-- **Tek giriş noktası:** Tüm istemci trafiği (REST **ve** WebSocket) API Gateway üzerinden geçer; servisler ve veritabanları dış dünyaya kapalıdır.
+- **Tek giriş noktası:** Tüm istemci trafiği (REST ve WebSocket) API Gateway'den geçer; servisler ve veritabanları dışa kapalıdır.
 - **Database-per-service:** Her servis yalnızca kendi MongoDB örneğine erişir.
-- **Olay güdümlü iletişim:** Randevu olayları RabbitMQ topic exchange'i üzerinden yayınlanır, bildirim servisi bunları asenkron olarak tüketir.
-- **Gerçek zamanlı katman:** JWT ile doğrulanmış bir Socket.io sunucusu; her kullanıcı kendi `user:<id>` odasında anlık bildirim alır, bir doktorun sayfasını izleyen herkes `doctor:<doctorId>` odasında müsaitlik değişikliğini (`slot.updated`) anında görür. Birden fazla notification-service örneği arasında olayları paylaşmak için Redis adapter kullanılır.
-- **Dayanıklı mesajlaşma:** Gecikmeli yeniden deneme (retry) kuyruğu, dead-letter queue (DLQ) ve idempotent işleme sayesinde mesajlar ne kaybolur ne de iki kez işlenir.
-- **Rol tabanlı yetkilendirme:** `patient`, `doctor`, `admin` rolleri; doktor rolü yalnızca admin tarafından atanabilir.
-- **Güvenlik:** JWT access token + opak/tek-kullanımlık refresh token (rotasyon, çalıntı tespiti), httpOnly refresh cookie, bcrypt ile parola özeti, e-posta doğrulama ve şifre sıfırlama, helmet, CORS, rate limiting.
-- **Gözlemlenebilirlik:** Her isteğe atanan `X-Request-Id` gateway'den servislere taşınır ve tüm loglarda yer alır; yapılandırılmış JSON loglar; OpenTelemetry ile dağıtık izleme (Jaeger) ve Prometheus metrikleri (`/metrics`), önceden yapılandırılmış bir Grafana paneli.
-- **Web arayüzü:** React + TypeScript SPA; Türkçe, mobil uyumlu, açık/koyu tema, yalnızca gateway ile konuşur. Tanıtım sayfası, doktor arama/filtre, haftalık müsaitlik takvimi, onay pencereleri, profil/şifre yönetimi, admin istatistik paneli, canlı bildirim zili, toast mesajları ve anlık güncellenen doktor müsaitliği içerir. Sayfa geçişlerinde marka renginde ince bir yükleme çubuğu ve yumuşak bir fade/slide animasyonu, async butonlarda küçük bir dönen gösterge var; `prefers-reduced-motion` ayarına saygı gösterir.
-- **Tamamen Türkçe:** Arayüz metinleri ve API'nin ürettiği her hata/uyarı mesajı (doğrulama hataları dahil) Türkçe; hata *kodları* ve loglar İngilizce kalır.
-- **Kalite:** TypeScript strict mode, Zod ile girdi ve ortam değişkeni doğrulaması, ESLint + Prettier, 245 backend birim/entegrasyon testi, 45 web bileşen testi (Vitest), 34 adımlık REST uçtan uca test, 7 Playwright uçtan uca testi (gerçek zamanlı akış, **gerçek SMTP ile MailHog'a giden e-postanın okunduğu** şifre sıfırlama, `.ics` indirme dahil) ve her push'ta çalışan bir GitHub Actions CI hattı.
+- **Olay güdümlü iletişim:** Randevu olayları RabbitMQ üzerinden yayınlanır, bildirim servisi asenkron tüketir (detaylar: [Tasarım Kararları](#tasarım-kararları)).
+- **Gerçek zamanlı katman:** JWT doğrulamalı Socket.io; bildirim ve müsaitlik güncellemeleri sayfa yenilenmeden ulaşır.
+- **Dayanıklı mesajlaşma:** Retry kuyruğu, dead-letter queue, idempotent işleme — mesaj ne kaybolur ne iki kez işlenir.
+- **Rol tabanlı yetkilendirme:** `patient`, `doctor`, `admin`; doktor rolünü yalnızca admin atar.
+- **Güvenlik:** JWT access token + opak/tek-kullanımlık refresh token (rotasyon, çalıntı tespiti), httpOnly cookie, bcrypt, e-posta doğrulama, şifre sıfırlama, helmet, CORS, rate limiting.
+- **Gözlemlenebilirlik:** Request id, yapılandırılmış loglar, OpenTelemetry/Jaeger, Prometheus metrikleri, hazır bir Grafana paneli.
+- **Web arayüzü:** React + TypeScript SPA, Türkçe, mobil uyumlu, açık/koyu tema. Doktor arama, haftalık takvim, onay pencereleri, admin paneli, canlı bildirimler.
+- **Tamamen Türkçe:** Arayüz ve API hata mesajları Türkçe; kod, loglar ve commit'ler İngilizce.
+- **Kalite:** TypeScript strict, Zod doğrulama, 245 backend testi, 45 web bileşen testi, 34 adımlık REST e2e, 7 Playwright testi, her push'ta CI.
 
 ---
 
@@ -474,17 +474,17 @@ Her servis, gerçek MongoDB ve RabbitMQ'ya karşı çalışan entegrasyon testle
 
 | Servis | Test sayısı | Kapsanan başlıca senaryolar |
 |---|---:|---|
-| auth-service | **73** ✅ | Kayıt, giriş, refresh (cookie ve gövde), **refresh token rotasyonu** (eski token bir daha kullanılamaz, çalınan/tekrar kullanılan token kullanıcının tüm oturumlarını kapatır), `/logout` (token iptali, idempotent), **e-posta doğrulama** (kayıtta best-effort gönderim, `/verify-email`, token tekrar kullanılamaz, `/resend-verification`), **şifre sıfırlama** (`/forgot-password` e-posta sızdırmaz, `/reset-password` tüm oturumları kapatır), `/me`, profil adı güncelleme, şifre değiştirme (mevcut şifre doğrulamalı), doktor rolüyle kendi kendine kayıt reddi, admin rol atama ve listeleme, kullanıcı istatistikleri (`/users/stats`), **internal endpoint** (paylaşılan token olmadan 401, var olmayan kullanıcı 404), **`/metrics`** (Prometheus), yetkisiz erişim (401/403), admin'in kendi rolünü değiştirememesi, admin bootstrap ve şifre rotasyonu, production'da zayıf secret reddi, validate middleware (Express 5 `req.query`) |
-| appointment-service | **77** ✅ | Doktor profili (adıyla birlikte) ve müsaitlik ekleme/silme, randevu oluşturma, çakışma (409), onay/iptal kuralları, rol kısıtları, **transactional outbox** (olay + randevu aynı transaction'da, outbox publisher'ın yayınlama/yeniden deneme/zaten-yayınlanmışı-atlama davranışı), dolu saatlerin (`bookedSlots`) yalnızca pending/confirmed randevulardan gelmesi, randevu istatistikleri (durum dağılımı + 14 günlük trend, UTC'de), RabbitMQ kapalıyken üç olayın da outbox'ta güvenle durması, **24 saat öncesi hatırlatma işi** (yalnızca onaylanmış/süresi gelmemiş/henüz hatırlatılmamış randevular, aynı randevu iki kez hatırlatılmaz), **`.ics` indirme** (sahibi olmayana 403, format doğrulaması), **`/metrics`**, ortam değişkeni doğrulaması, validate middleware |
-| notification-service | **63** ✅ | Olaydan bildirim üretimi, şablonlar (randevu hatırlatması dahil), ack/nack kararları, gecikmeli retry, deneme hakkı bitince DLQ, bozuk mesajın DLQ'ya gitmesi, idempotency, sayfalama, okundu işaretleme (tekil/toplu, başkasının bildirimini okuyamama), **gerçek e-posta gönderimi** (auth-service'ten adres çözme, MailHog'a gönderim, adres çözme veya SMTP hatasının bildirimi `pending` bırakıp mevcut RabbitMQ retry/DLQ mekanizmasına devretmesi), **Socket.io**: yetkisiz/geçersiz token reddi, doğru kullanıcıya doğru `notification` olayı ve unread count, başkasına sızmaması, `doctor:watch` ile `slot.updated` yayını, **`/metrics`** (RabbitMQ kuyruk derinliği dahil, kanal hatasında diğer kuyrukların okunmaya devam etmesi), ortam değişkeni doğrulaması |
-| api-gateway | **32** ✅ | Yönlendirme ve yol koruma, gövde/başlık/cookie aktarımı, request id üretme/taşıma/temizleme, helmet, CORS (liste, `*`, preflight, upstream başlıklarının ezilmesi), genel ve giriş limitleri (429), 502/504, sağlık kontrolleri, **`/metrics`**, **`/api/docs`** (Swagger UI + ham OpenAPI belgesi), **gerçek bir Socket.io el sıkışmasının ve mesajının websocket upgrade üzerinden notification-service'e iletilmesi** |
+| auth-service | **73** ✅ | Kayıt/giriş/refresh, refresh token rotasyonu + çalıntı tespiti, logout, e-posta doğrulama, şifre sıfırlama, profil, admin rol yönetimi, `/metrics`, yetkisiz erişim, zayıf secret reddi |
+| appointment-service | **77** ✅ | Doktor profili/müsaitlik, randevu oluşturma + çakışma kontrolü, transactional outbox, randevu istatistikleri, hatırlatma işi, `.ics` indirme, `/metrics` |
+| notification-service | **63** ✅ | Olaydan bildirim üretimi, retry/DLQ, idempotency, gerçek e-posta gönderimi, Socket.io yetkilendirme ve yayın, `/metrics` |
+| api-gateway | **32** ✅ | Yönlendirme, helmet/CORS, rate limit, 502/504, `/metrics`, `/api/docs`, WebSocket proxy |
 | **Toplam** | **245** ✅ | |
 
-**Uçtan uca test** (`scripts/e2e.mjs`, `docker compose up` ile ayağa kalkan gerçek sisteme karşı, yalnızca gateway üzerinden): **34/34 kontrol başarılı** ✅ — sağlık, request id, güvenlik başlıkları, rate limit başlıkları, kayıt, rol atama, doktor profili ve müsaitlik, randevu alma, çift rezervasyon engeli, onay, iptal, RabbitMQ üzerinden hasta ve doktora iletilen bildirimler, sayfalama ve kuyruk topolojisi. Her koşu, kendi oluşturduğu test verisini sonunda otomatik temizler (`scripts/clean-test-data.mjs`).
+**Uçtan uca test** (`scripts/e2e.mjs`, gerçek `docker compose` sistemine karşı, yalnızca gateway üzerinden): **34/34** ✅ — kayıt, rol atama, randevu alma/onay/iptal, bildirimler, kuyruk topolojisi. Her koşu kendi test verisini temizler (`scripts/clean-test-data.mjs`).
 
-**Web birim/bileşen testleri** ([`web/vitest.config.ts`](web/vitest.config.ts), Vitest + Testing Library, `npm test`): **45/45** ✅ — `avatarColor`/`isValidEmail` gibi saf mantık, `FieldError`/`EmptyState`/`ConfirmDialog`/`ThemeToggle`/`ButtonLabel`/`TopLoadingBar` bileşenleri, API'si mock'lanmış `DoctorsListPage` (listeleme, arama, uzmanlık filtresi, boş durum, hata durumu), e-posta doğrulama/şifre sıfırlama sayfaları (`ForgotPasswordPage`, `ResetPasswordPage`, `VerifyEmailPage`, `EmailVerificationBanner`), ve `.ics` indirme yardımcısı (`downloadAppointmentIcs`: doğru başlıklarla indirme, hata durumunda indirmeme).
+**Web birim/bileşen testleri** ([`web/vitest.config.ts`](web/vitest.config.ts), Vitest + Testing Library): **45/45** ✅ — saf mantık (`avatarColor`, `isValidEmail`), ortak bileşenler, mock'lanmış `DoctorsListPage`, e-posta doğrulama/şifre sıfırlama sayfaları, `.ics` indirme yardımcısı.
 
-**Web arayüzü uçtan uca testleri** (Playwright, gerçek `docker compose` sistemine karşı, **7/7** ✅): [`realtime.spec.ts`](web/e2e/realtime.spec.ts) iki ayrı tarayıcı bağlamı açar (hasta ve doktor), hasta gerçek arayüz üzerinden bir doktora randevu alır ve doktorun ekranında **sayfa hiç yenilenmeden** bildirim zilinin, okunmamış sayısının ve toast mesajının anlık olarak belirdiğini doğrular; [`password-reset.spec.ts`](web/e2e/password-reset.spec.ts) "şifremi unuttum" formunu gönderir, **gerçek SMTP ile MailHog'a gelen e-postayı MailHog'un kendi API'sinden okur**, oradaki bağlantıdan token'ı çıkarır ve şifreyi sıfırlayıp yeni şifreyle giriş yapar — mock değil, backend'in gerçekten gönderdiği e-posta; [`ics-download.spec.ts`](web/e2e/ics-download.spec.ts) bir randevuyu onaylatır ve "Takvime Ekle" düğmesinin gerçek bir `.ics` dosyası indirdiğini doğrular. Diğerleri: `doctor-search`, `profile`, `cancel-appointment`, `theme-toggle`. Bkz. [`web/e2e/README.md`](web/e2e/README.md).
+**Web arayüzü uçtan uca testleri** (Playwright, gerçek `docker compose` sistemine karşı): **7/7** ✅. [`realtime.spec.ts`](web/e2e/realtime.spec.ts) iki tarayıcı bağlamıyla (hasta + doktor) bildirim zilinin sayfa yenilenmeden güncellendiğini doğrular; [`password-reset.spec.ts`](web/e2e/password-reset.spec.ts) MailHog'un API'sinden gerçekten gönderilen e-postayı okuyup şifreyi sıfırlar (mock değil); [`ics-download.spec.ts`](web/e2e/ics-download.spec.ts) gerçek bir `.ics` indirmesini doğrular. Diğerleri: `doctor-search`, `profile`, `cancel-appointment`, `theme-toggle`. Bkz. [`web/e2e/README.md`](web/e2e/README.md).
 
 **CI (GitHub Actions, [`.github/workflows/ci.yml`](.github/workflows/ci.yml)):** her push ve pull request'te dört backend servisi (Mongo + RabbitMQ + Redis servis konteynerleriyle) ve web için lint, tip kontrolü/derleme ve testler çalışır; ayrıca beş Dockerfile'ın da hâlâ build olduğu ayrıca doğrulanır. Testler `--coverage` ile çalışır ve her projenin kendi `coverageThreshold`'u (jest) / `coverage.thresholds`'u (vitest) altına düşerse CI kırmızı olur — eşikler, bir gerçek düşüşü yakalayacak ama test çıktısındaki normal dalgalanmaya kırılgan olmayacak şekilde, şu anki ölçülen kapsamın biraz altında seçildi (bkz. her `jest.config.js` / `web/vitest.config.ts`'teki yorum).
 
@@ -763,11 +763,8 @@ web/
 
 ## Yol Haritası
 
-- SMS sağlayıcı entegrasyonu (e-posta artık gerçek SMTP ile gönderiliyor, bkz. "E-posta doğrulama, şifre sıfırlama ve MailHog"; SMS hâlâ yok).
-- Dağıtık rate limiting için gateway'de Redis store (şu an yalnızca Socket.io adapter'ı Redis kullanıyor).
-- k6 ile yük testi.
-- Mimari kararlar için `docs/adr/` altında ADR'ler.
-- Dependabot + CodeQL, servis başına asgari test kapsamı eşiği.
+- SMS sağlayıcı entegrasyonu (e-posta gerçek SMTP ile gönderiliyor, SMS hâlâ yok).
+- Gateway'de dağıtık rate limiting için Redis store (şu an yalnızca Socket.io adapter'ı Redis kullanıyor).
 
 ---
 
